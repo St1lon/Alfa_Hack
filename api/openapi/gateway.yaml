@@ -1,0 +1,310 @@
+openapi: 3.0.3
+info:
+  title: llm-gateway API
+  version: 0.1.0
+  description: |
+    Единственный выход к языковым моделям (владелец — Go #1).
+    Прямой вызов провайдера из сервиса запрещён: ломает бюджет и аудит
+    (CLAUDE.md §12 п.1). Ключ провайдера есть только у этого сервиса.
+
+    Что делает gateway на каждом запросе:
+      1. проверяет модель по allowlist (Ограничение 04 — модель вне списка не вызывается);
+      2. выбирает модель по задаче, если она не указана явно;
+      3. отдаёт ответ из кэша по хэшу промпта, если он там есть;
+      4. проверяет дневной бюджет и отбивает запрос при hard-лимите;
+      5. пишет запись в аудит `llm_calls` (включая кэш-хиты и отказы).
+
+servers:
+  - url: http://localhost:8091
+    description: локальный запуск через docker compose
+  - url: http://llm-gateway:8091
+    description: внутри сети compose (так ходят java-agent, go-api, py-ml)
+
+security:
+  - serviceToken: []
+
+paths:
+  /healthz:
+    get:
+      summary: Liveness
+      operationId: healthz
+      security: []
+      responses:
+        "200":
+          description: Сервис жив
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+
+  /readyz:
+    get:
+      summary: Readiness — есть коннект к базе
+      operationId: readyz
+      security: []
+      responses:
+        "200":
+          description: Готов обслуживать запросы
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+        "503":
+          description: База недоступна
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+
+  /v1/models:
+    get:
+      summary: Allowlist моделей и маршрутизация задач
+      operationId: listModels
+      responses:
+        "200":
+          description: Разрешённые модели и карта «задача → модель»
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelsResponse"
+
+  /v1/budget:
+    get:
+      summary: Расход на модели за сегодня
+      description: Разбивка по сервисам нужна, чтобы один человек не выжег дневную квоту.
+      operationId: getBudget
+      responses:
+        "200":
+          description: Состояние дневного бюджета
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BudgetResponse"
+
+  /v1/complete:
+    post:
+      summary: Вызов модели (chat completion)
+      operationId: complete
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompleteRequest"
+      responses:
+        "200":
+          description: Ответ модели или кэша
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompleteResponse"
+        "400":
+          description: Невалидный запрос, пустой промпт или модель вне allowlist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Нет или неверен внутренний токен сервиса
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: Исчерпан дневной бюджет (hard-лимит). Кэш продолжает работать
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "502":
+          description: Провайдер моделей недоступен или не настроен
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  securitySchemes:
+    serviceToken:
+      type: http
+      scheme: bearer
+      description: |
+        Внутренний токен сервисов команды (`GATEWAY_AUTH_TOKEN`).
+        Пустое значение переменной выключает проверку — так работает локальная
+        разработка; на внешнем сервере токен задаётся обязательно.
+
+  schemas:
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: ok
+        detail:
+          type: string
+
+    CompleteRequest:
+      type: object
+      required: [service, messages]
+      properties:
+        service:
+          type: string
+          description: Кто вызывает — попадает в аудит и в разбивку бюджета
+          enum: [go-ingest, go-api, java-agent, py-ml]
+        actor:
+          type: string
+          description: Кто из команды гонял запрос (для разбора расхода)
+          example: java
+        task:
+          type: string
+          description: Задача маршрутизации; модель выбирается по ней, если model не указан
+          enum: [classify, extract, analyze, reason, critic, relations, vision]
+        model:
+          type: string
+          description: Явный выбор модели; обязан быть в allowlist
+          example: glm-5.3-flash
+        messages:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/Message"
+        temperature:
+          type: number
+          format: double
+          example: 0.2
+        max_tokens:
+          type: integer
+          example: 1200
+        response_format:
+          type: object
+          description: |
+            Пробрасывается провайдеру как есть — здесь живут Structured Outputs
+            с JSON Schema у java-agent.
+          additionalProperties: true
+        cache:
+          type: boolean
+          default: true
+          description: Отключать кэш осознанно — он главная страховка демо
+
+    Message:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [system, user, assistant]
+        content:
+          type: string
+
+    CompleteResponse:
+      type: object
+      required: [model, content, usage, cost_kop, cache_hit]
+      properties:
+        model:
+          type: string
+        content:
+          type: string
+        finish_reason:
+          type: string
+        usage:
+          $ref: "#/components/schemas/Usage"
+        cost_kop:
+          type: integer
+          format: int64
+          description: Стоимость вызова в копейках; 0 при кэш-хите
+        cache_hit:
+          type: boolean
+        soft_limit_hit:
+          type: boolean
+          description: Дневной soft-лимит пройден — пора экономить
+        spent_today_kop:
+          type: integer
+          format: int64
+
+    Usage:
+      type: object
+      required: [prompt_tokens, completion_tokens, total_tokens]
+      properties:
+        prompt_tokens:
+          type: integer
+        completion_tokens:
+          type: integer
+        total_tokens:
+          type: integer
+
+    ModelsResponse:
+      type: object
+      required: [models, routing]
+      properties:
+        models:
+          type: array
+          items:
+            type: object
+            required: [id]
+            properties:
+              id:
+                type: string
+              price_in_kop_per_mtok:
+                type: integer
+                format: int64
+              price_out_kop_per_mtok:
+                type: integer
+                format: int64
+        routing:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            classify: gemma-4-26b-a4b
+            critic: glm-5.3-flash
+
+    BudgetResponse:
+      type: object
+      required: [day, spent_kop, hard_limit_kop]
+      properties:
+        day:
+          type: string
+          format: date
+        spent_kop:
+          type: integer
+          format: int64
+        tokens:
+          type: integer
+          format: int64
+        calls:
+          type: integer
+        soft_limit_kop:
+          type: integer
+          format: int64
+        hard_limit_kop:
+          type: integer
+          format: int64
+        remaining_kop:
+          type: integer
+          format: int64
+        spend_by_service:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+
+    Error:
+      type: object
+      required: [code, description]
+      properties:
+        code:
+          type: string
+          enum:
+            [
+              BAD_REQUEST,
+              EMPTY_PROMPT,
+              MODEL_NOT_ALLOWED,
+              UNKNOWN_TASK,
+              BUDGET_EXCEEDED,
+              UPSTREAM_FAILED,
+              UNAUTHORIZED,
+              INTERNAL,
+            ]
+        description:
+          type: string

@@ -1,0 +1,51 @@
+# Allowlist моделей и маршрутизация задач (Ограничение 04 и TEAM_PLAN §13).
+#
+# ВАЖНО: id моделей здесь — такие, как они названы в условии кейса. Точные строки,
+# которые принимает провайдер, уточняем в первый день и правим только этот файл,
+# не код. Модель вне этого списка gateway не вызовет: вернёт MODEL_NOT_ALLOWED.
+#
+# Цены — в копейках за миллион токенов. Пока организаторы не дали тарифов,
+# ставим ненулевую условную цену, чтобы счётчик бюджета и hard-стоп были
+# проверяемы на демо. Как получим реальные — правим только этот файл.
+
+fallback_model: gemma-4-26b-a4b
+
+models:
+  - id: gemma-4-26b-a4b
+    note: классификация, извлечение, простые преобразования — самая дешёвая
+    price_in_kop_per_mtok: 500
+    price_out_kop_per_mtok: 1000
+
+  - id: qwen3.6-35b-a3b
+    note: общий анализ и генерация текста
+    price_in_kop_per_mtok: 1000
+    price_out_kop_per_mtok: 2000
+
+  - id: glm-5.3-flash
+    note: шаги глубокого рассуждения и критик
+    price_in_kop_per_mtok: 1500
+    price_out_kop_per_mtok: 3000
+
+  - id: kimi-k2.6
+    note: альтернатива на глубокое рассуждение и критик
+    price_in_kop_per_mtok: 1500
+    price_out_kop_per_mtok: 3000
+
+  - id: deepseek-v4.1-flash
+    note: поиск взаимосвязей между событиями
+    price_in_kop_per_mtok: 1200
+    price_out_kop_per_mtok: 2400
+
+  - id: qwen3-vl-30b-a3b-instruct
+    note: графики и таблицы из PDF аналитики ЦМИ
+    price_in_kop_per_mtok: 1200
+    price_out_kop_per_mtok: 2400
+
+routing:
+  classify: gemma-4-26b-a4b
+  extract: gemma-4-26b-a4b
+  analyze: qwen3.6-35b-a3b
+  reason: glm-5.3-flash
+  critic: glm-5.3-flash
+  relations: deepseek-v4.1-flash
+  vision: qwen3-vl-30b-a3b-instruct

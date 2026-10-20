@@ -1,0 +1,22 @@
+# syntax=docker/dockerfile:1
+# Один Dockerfile на все три Go-сервиса: цель выбирается аргументом SERVICE
+# (go-ingest | llm-gateway | go-api). Версия Go синхронизирована с go.mod.
+FROM golang:1.24 AS build
+WORKDIR /src
+ENV CGO_ENABLED=0 GOTOOLCHAIN=local
+
+# Слой зависимостей кэшируется отдельно от кода.
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+ARG SERVICE
+RUN test -n "$SERVICE" && go build -trimpath -o /out/service ./cmd/${SERVICE}
+
+FROM alpine:3.20
+RUN apk add --no-cache wget ca-certificates && adduser -D -u 10001 app
+WORKDIR /app
+COPY --from=build /out/service /usr/local/bin/service
+COPY --from=build /src/configs /app/configs
+USER app
+ENTRYPOINT ["service"]

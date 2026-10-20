@@ -1,0 +1,162 @@
+name: alfa-hack
+
+# Единый способ запуска всего решения (чеклист сдачи, Ограничение 06).
+# Порты: go-ingest 8080, java-agent 8081, py-ml 8000, go-api 8090, llm-gateway 8091.
+#
+# Полный стек:        docker compose -f deployments/docker-compose.yaml up --build
+# Только Go-контур:   docker compose -f deployments/docker-compose.yaml up --build postgres migrate go-ingest llm-gateway go-api
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: alfa
+      POSTGRES_PASSWORD: alfa
+      POSTGRES_DB: alfa
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alfa -d alfa"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  # Прогон миграций — отдельный one-shot job до старта сервисов (CLAUDE.md §5).
+  migrate:
+    image: migrate/migrate:v4.17.1
+    volumes:
+      - ../internal/infra/db/postgres/migrations:/migrations:ro
+    command:
+      - "-path=/migrations"
+      - "-database=postgres://alfa:alfa@postgres:5432/alfa?sslmode=disable"
+      - "up"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+
+  go-ingest:
+    build:
+      context: ..
+      dockerfile: deployments/Dockerfile.goservice
+      args:
+        SERVICE: go-ingest
+    env_file:
+      - ../.env.example
+      - path: ../.env
+        required: false
+    environment:
+      ALFA_PG_HOST: postgres
+      INGEST_HTTP_PORT: "8080"
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  llm-gateway:
+    build:
+      context: ..
+      dockerfile: deployments/Dockerfile.goservice
+      args:
+        SERVICE: llm-gateway
+    env_file:
+      - ../.env.example
+      - path: ../.env
+        required: false
+    environment:
+      ALFA_PG_HOST: postgres
+      GATEWAY_HTTP_PORT: "8091"
+    ports:
+      - "8091:8091"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8091/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  go-api:
+    build:
+      context: ..
+      dockerfile: deployments/Dockerfile.goservice
+      args:
+        SERVICE: go-api
+    env_file:
+      - ../.env.example
+      - path: ../.env
+        required: false
+    environment:
+      ALFA_PG_HOST: postgres
+      API_HTTP_PORT: "8090"
+      API_GATEWAY_BASE_URL: http://llm-gateway:8091
+      API_AGENT_BASE_URL: http://java-agent:8081
+    ports:
+      - "8090:8090"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8090/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  py-ml:
+    build:
+      context: ..
+      dockerfile: deployments/Dockerfile.pyml
+    env_file:
+      - ../.env.example
+      - path: ../.env
+        required: false
+    environment:
+      ALFA_PG_HOST: postgres
+      PYML_HTTP_PORT: "8000"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  java-agent:
+    build:
+      context: ..
+      dockerfile: deployments/Dockerfile.javaagent
+    env_file:
+      - ../.env.example
+      - path: ../.env
+        required: false
+    environment:
+      ALFA_PG_HOST: postgres
+      AGENT_HTTP_PORT: "8081"
+      AGENT_GATEWAY_BASE_URL: http://llm-gateway:8091
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      llm-gateway:
+        condition: service_healthy
+
+volumes:
+  pgdata:

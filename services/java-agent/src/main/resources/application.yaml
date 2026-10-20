@@ -1,0 +1,22 @@
+# Конфигурация java-agent. Переменные — из .env.example (AGENT_*, ALFA_PG_*).
+server:
+  port: ${AGENT_HTTP_PORT:8081}
+
+spring:
+  application:
+    name: java-agent
+  datasource:
+    url: jdbc:postgresql://${ALFA_PG_HOST:localhost}:${ALFA_PG_PORT:5432}/${ALFA_PG_DATABASE:alfa}
+    username: ${ALFA_PG_USER:alfa}
+    password: ${ALFA_PG_PASSWORD:alfa}
+
+# Все обращения к моделям идут только через llm-gateway (CLAUDE.md §12 п.1).
+agent:
+  gateway:
+    base-url: ${AGENT_GATEWAY_BASE_URL:http://llm-gateway:8091}
+    token: ${AGENT_GATEWAY_TOKEN:}
+  model-version: ${AGENT_MODEL_VERSION:v0.1}
+
+logging:
+  level:
+    root: ${AGENT_LOG_LEVEL:info}

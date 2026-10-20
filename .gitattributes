@@ -1,0 +1,8 @@
+# Нормализуем перевод строки: в репозитории — LF. Иначе shell-скрипты и SQL,
+# собранные на Windows, падают внутри Linux-контейнеров.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.pdf binary
+*.csv text eol=lf

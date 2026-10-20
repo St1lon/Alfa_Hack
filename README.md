@@ -1,0 +1,134 @@
+# Альфа-Хак · Новостная аналитика для принятия бизнес-решений
+
+Сервис превращает поток внешних новостей и аналитику Альфа-Банка
+в персонализированные бизнес-инсайты для ЛПР крупного бизнеса.
+
+Это **рабочий README для команды**. Полная версия для сдачи (назначение,
+архитектурная схема, пошаговый сценарий проверки, THIRD_PARTY_NOTICES)
+собирается на Д5–Д8, владелец — Go #1 и Java (см. [docs/PROGRESS.md](docs/PROGRESS.md)).
+
+- Что строим и кто за что отвечает — [docs/TEAM_PLAN.md](docs/TEAM_PLAN.md)
+- Статус работ по участникам — [docs/PROGRESS.md](docs/PROGRESS.md)
+- Архитектурные правила репозитория — [CLAUDE.md](CLAUDE.md)
+
+---
+
+## Быстрый старт
+
+Нужны только Docker и Docker Compose.
+
+```bash
+docker compose -f deployments/docker-compose.yaml up --build
+```
+
+Только Go-контур и база (быстрее, без сборки Java и Python):
+
+```bash
+make up-go
+```
+
+Проверить, что всё живо:
+
+```bash
+make smoke
+```
+
+| Сервис | Порт | Владелец | Состояние |
+|---|---|---|---|
+| `go-ingest` — парсер, оркестратор, SSE | 8080 | Go #1 | парсер и SSE работают |
+| `java-agent` — агентное ядро, Hybrid RAG | 8081 | Java | скелет, эндпоинты 501 |
+| `py-ml` — эмбеддинги, шум, сюжеты | 8000 | Python | скелет, эндпоинты 501 |
+| `go-api` — Client Context Engine, BFF | 8090 | Go #2 | скелет, эндпоинты 501 |
+| `llm-gateway` — единственный выход к моделям | 8091 | Go #1 | работает (нужен ключ провайдера) |
+| `postgres` 16 + pgvector | 5432 | Go #1 | 26 таблиц, миграции отдельным job |
+
+## Что уже можно делать
+
+```bash
+# что собрал парсер
+curl localhost:8080/metrics
+
+# вбросить свою новость — живой путь для демо
+curl -X POST localhost:8080/v1/news -H 'Content-Type: application/json' -d '{
+  "url": "https://example.com/news/1",
+  "title": "РЖД индексирует тарифы на восточном полигоне",
+  "body": "Тариф на перевозку неугольных грузов индексируется на 10 процентов с 1 декабря."
+}'
+
+# live-панель пайплайна (Server-Sent Events)
+curl -N localhost:8080/v1/pipeline/stream
+
+# allowlist моделей и дневной расход
+curl localhost:8091/v1/models
+curl localhost:8091/v1/budget
+```
+
+Контракты: [api/openapi/ingest.yaml](api/openapi/ingest.yaml),
+[api/openapi/gateway.yaml](api/openapi/gateway.yaml).
+
+## Конфигурация
+
+Все переменные перечислены в [.env.example](.env.example) — он же подключается
+в compose как база значений. Свои значения и секреты кладите в `.env`
+(он в `.gitignore` и не попадает в репозиторий).
+
+Ключ к моделям нужен только `llm-gateway`:
+
+```dotenv
+LLM_UPSTREAM_BASE_URL=https://<адрес-провайдера>/v1
+LLM_API_KEY=<ключ хакатона>
+```
+
+Без ключа стек поднимается, но `POST /v1/complete` отвечает `UPSTREAM_FAILED` —
+так остальные стеки пишутся против живого контракта с первого дня.
+
+Allowlist моделей, маршрутизация задач и цены — [configs/llm.yaml](configs/llm.yaml).
+Модель вне этого файла gateway не вызовет (Ограничение 04 кейса).
+
+## Данные кейса
+
+Файлы датасета и аналитики ЦМИ в репозиторий не коммитятся (см. `.gitignore`).
+Положите их локально:
+
+```
+data/
+  df_Uid_data_hack.csv     — юрлица
+  persons.csv              — связи ФЛ и ЮЛ
+  payments.csv             — граф платежей
+  research/                — 9 материалов ЦМИ Альфа-Банка (PDF)
+```
+
+## Разработка
+
+```bash
+make build        # собрать три Go-сервиса
+make test-race    # юнит-тесты с -race
+make lint         # golangci-lint
+make migrate-up   # применить миграции к локальной базе
+```
+
+Перед тем как считать задачу сделанной: `make lint` чистый и `make test-race` зелёный.
+
+Правила кода, слои и границы — [CLAUDE.md](CLAUDE.md). Главное:
+одна ветка на сервис, PR в `main`, обращения к моделям только через `llm-gateway`,
+ни один вывод не идёт в UI без `evidence` и `attribution`.
+
+## Структура репозитория
+
+```
+api/openapi/          контракты REST (пишутся руками, держатся в синхроне с кодом)
+cmd/                  точки входа Go-сервисов: go-ingest, llm-gateway, go-api
+configs/llm.yaml      allowlist моделей, маршрутизация задач, цены
+deployments/          docker-compose и Dockerfile'ы
+docs/                 план команды и трекер прогресса
+internal/
+  domain/             сущности, sentinel-ошибки, правила дедупа и статусной машины
+  usecase/            по пакету на use case, порты объявлены рядом с потребителем
+  infra/              Postgres, парсер лент, клиент провайдера моделей
+  transport/http/      роутеры и хендлеры по сервисам
+  worker/             воркер опроса лент
+  app/                composition root каждого сервиса
+scripts/smoke.sh      смоук-тест живого контура
+services/py-ml/       скелет Python-сервиса
+services/java-agent/  скелет Java-сервиса
+```

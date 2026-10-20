@@ -1,0 +1,33 @@
+# binaries
+/bin/
+*.exe
+
+# env / secrets
+.env
+*.local.env
+
+# go
+/vendor/
+*.test
+*.out
+coverage*.txt
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+
+# java
+services/java-agent/target/
+
+# tooling
+.idea/
+.vscode/
+*.log
+
+# Данные кейса: в репозиторий идут только структура каталога и README.
+/data/*
+!/data/README.md
+!/data/research/
+/data/research/*
+!/data/research/.gitkeep

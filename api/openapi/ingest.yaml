@@ -1,0 +1,202 @@
+openapi: 3.0.3
+info:
+  title: go-ingest API
+  version: 0.1.0
+  description: |
+    Контур сервиса go-ingest (владелец — Go #1): вброс произвольной новости
+    для живого демо и SSE-стрим статусов пайплайна для live-панели.
+
+    Спека пишется руками и обязана совпадать с хендлерами
+    (CLAUDE.md §6): расхождение — баг, а не особенность.
+
+servers:
+  - url: http://localhost:8080
+    description: локальный запуск через docker compose
+
+paths:
+  /healthz:
+    get:
+      summary: Liveness — процесс жив
+      operationId: healthz
+      responses:
+        "200":
+          description: Сервис жив
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+
+  /readyz:
+    get:
+      summary: Readiness — есть коннект к базе
+      operationId: readyz
+      responses:
+        "200":
+          description: Готов обслуживать запросы
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+        "503":
+          description: База недоступна
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+
+  /metrics:
+    get:
+      summary: Счётчики пайплайна для внутреннего дашборда команды
+      operationId: metrics
+      responses:
+        "200":
+          description: Количество новостей по статусам
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [news_by_status]
+                properties:
+                  news_by_status:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                    example:
+                      RAW: 128
+                      DEDUPED: 96
+
+  /v1/news:
+    post:
+      summary: Вбросить новость текстом или ссылкой
+      description: |
+        Живой путь для демо и критерия 05: новость, которую система раньше не видела,
+        попадает в пайплайн в статусе RAW. Дубликат — не ошибка: отвечаем 200
+        с флагом duplicate, чтобы повторный вброс на защите не ломал сценарий.
+      operationId: ingestNews
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IngestNewsRequest"
+      responses:
+        "201":
+          description: Новость принята
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngestNewsResponse"
+        "200":
+          description: Такая новость уже есть (дедуп по тексту или канонизированному URL)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngestNewsResponse"
+        "400":
+          description: Невалидный запрос
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/pipeline/stream:
+    get:
+      summary: SSE-стрим событий пайплайна
+      description: |
+        Server-Sent Events: каждое событие — продвижение сущности по статусам
+        RAW → DEDUPED → ENRICHED → SCORED → ANALYZED → PUBLISHED.
+        Докрутка с места обрыва — заголовком Last-Event-ID или параметром after.
+      operationId: streamPipeline
+      parameters:
+        - in: query
+          name: after
+          required: false
+          schema:
+            type: integer
+            format: int64
+          description: Отдавать события с id больше указанного
+        - in: header
+          name: Last-Event-ID
+          required: false
+          schema:
+            type: string
+          description: Штатный механизм докрутки SSE, приоритетнее параметра after
+      responses:
+        "200":
+          description: Поток событий
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              example: |
+                id: 42
+                event: pipeline
+                data: {"id":42,"entity_kind":"news","entity_id":"6f1c...","status":"RAW","service":"go-ingest","message":"новость принята","created_at":"2026-10-20T09:00:00Z"}
+
+components:
+  schemas:
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: ok
+        detail:
+          type: string
+
+    IngestNewsRequest:
+      type: object
+      required: [title, body]
+      properties:
+        url:
+          type: string
+          description: Ссылка на первоисточник; можно не указывать при вбросе текстом
+          example: https://www.interfax.ru/business/1
+        title:
+          type: string
+          example: ЦБ сохранил ключевую ставку на уровне 14%
+        body:
+          type: string
+          description: Текст новости, не короче 40 символов
+        publisher:
+          type: string
+          example: Интерфакс
+        lang:
+          type: string
+          default: ru
+        published_at:
+          type: string
+          format: date-time
+
+    IngestNewsResponse:
+      type: object
+      required: [duplicate, status]
+      properties:
+        news_id:
+          type: string
+          format: uuid
+          description: Отсутствует, если новость — дубликат
+        duplicate:
+          type: boolean
+        status:
+          type: string
+          enum: [RAW, duplicate]
+
+    Error:
+      type: object
+      required: [code, description]
+      properties:
+        code:
+          type: string
+          enum:
+            [
+              BAD_REQUEST,
+              INVALID_NEWS,
+              EMPTY_NEWS_BODY,
+              INVALID_NEWS_URL,
+              NOT_FOUND,
+              INTERNAL,
+            ]
+        description:
+          type: string
