@@ -1,4 +1,4 @@
-.PHONY: help tidy fmt lint test test-race build up up-go down logs migrate-up migrate-down smoke
+.PHONY: help tidy fmt lint test test-race build up up-go down logs migrate-up migrate-down smoke data
 
 GO ?= go
 COMPOSE ?= docker compose -f deployments/docker-compose.yaml
@@ -18,6 +18,7 @@ help:
 	@echo "migrate-up    - применить миграции к локальной БД"
 	@echo "migrate-down  - откатить одну миграцию"
 	@echo "smoke         - быстрая проверка живого контура (healthz + вброс новости)"
+	@echo "data          - скачать данные кейса в data/ (CSV и аналитику ЦМИ)"
 
 tidy:
 	$(GO) mod tidy
@@ -61,3 +62,6 @@ migrate-down:
 
 smoke:
 	./scripts/smoke.sh
+
+data:
+	bash scripts/fetch_case_data.sh

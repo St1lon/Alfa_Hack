@@ -7,6 +7,7 @@
 архитектурная схема, пошаговый сценарий проверки, THIRD_PARTY_NOTICES)
 собирается на Д5–Д8, владелец — Go #1 и Java (см. [docs/PROGRESS.md](docs/PROGRESS.md)).
 
+- Задание кейса (первоисточник) — [docs/CASE.pdf](docs/CASE.pdf), текстом — [docs/CASE.txt](docs/CASE.txt)
 - Что строим и кто за что отвечает — [docs/TEAM_PLAN.md](docs/TEAM_PLAN.md)
 - Статус работ по участникам — [docs/PROGRESS.md](docs/PROGRESS.md)
 - Архитектурные правила репозитория — [CLAUDE.md](CLAUDE.md)
@@ -87,16 +88,22 @@ Allowlist моделей, маршрутизация задач и цены — 
 
 ## Данные кейса
 
-Файлы датасета и аналитики ЦМИ в репозиторий не коммитятся (см. `.gitignore`).
-Положите их локально:
+Файлы датасета и аналитики в репозиторий не коммитятся (150 МБ, см. `.gitignore`).
+Скачиваются одной командой по ссылкам из ТЗ:
+
+```bash
+bash scripts/fetch_case_data.sh
+```
 
 ```
 data/
-  df_Uid_data_hack.csv     — юрлица
-  persons.csv              — связи ФЛ и ЮЛ
-  payments.csv             — граф платежей
-  research/                — 9 материалов ЦМИ Альфа-Банка (PDF)
+  df_Uid_data_hack.csv       юрлица, 85 525 строк
+  df_Uid_payment_hack.csv    граф платежей, 1 380 585 строк
+  df_Fid_Uid_link_hack.csv   связи ФЛ и ЮЛ, 12 514 строк
+  research/                  9 материалов ЦМИ Альфа-Банка, 64 страницы (сканы, нужен OCR)
 ```
+
+Что важно знать перед загрузкой данных — [data/README.md](data/README.md).
 
 ## Разработка
 

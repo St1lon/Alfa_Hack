@@ -32,11 +32,12 @@ type ProviderConfig struct {
 }
 
 // BudgetConfig — дневные лимиты расхода на модели, в копейках.
-// По умолчанию исходим из худшего чтения условия: 500 ₽ на весь хакатон,
-// поэтому дневной hard-лимит заметно ниже (см. docs/PROGRESS.md, открытые вопросы).
+// Ограничение 04 кейса: «общий ключ доступа к языковым моделям с дневным
+// лимитом на количество токенов, ограничение в денежном эквиваленте — 500р».
+// Soft-лимит на 80% от дневного потолка — сигнал экономить, не стоп.
 type BudgetConfig struct {
-	SoftLimitKop int64 `env:"SOFT_LIMIT_KOP" envDefault:"4000"`
-	HardLimitKop int64 `env:"HARD_LIMIT_KOP" envDefault:"6000"`
+	SoftLimitKop int64 `env:"SOFT_LIMIT_KOP" envDefault:"40000"`
+	HardLimitKop int64 `env:"HARD_LIMIT_KOP" envDefault:"50000"`
 }
 
 // LoadGateway читает конфигурацию llm-gateway.
