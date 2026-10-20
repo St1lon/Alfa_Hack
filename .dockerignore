@@ -1,0 +1,14 @@
+# Контекст сборки: не отправляем в демон лишнее — иначе каждая сборка тащит
+# историю git, данные кейса и локальные артефакты.
+.git
+.github
+bin
+data
+docs
+coverage*.txt
+*.log
+.env
+.idea
+.vscode
+services/java-agent/target
+**/__pycache__
