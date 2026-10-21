@@ -1,0 +1,44 @@
+# Автоматическое назначение ревьюера на PR по затронутым файлам.
+# Карта владения — в CLAUDE.md §13.
+#
+# ЧТОБЫ ВКЛЮЧИТЬ: подставьте GitHub-логины вместо @go1 / @go2 / @java / @python
+# и раскомментируйте строки. Пока логины не подставлены, файл ничего не делает —
+# GitHub просто игнорирует неизвестных владельцев.
+
+# Go #1 — парсер, оркестратор, LLM-Gateway, инфраструктура, релиз
+# /cmd/go-ingest/                      @go1
+# /cmd/llm-gateway/                    @go1
+# /internal/app/ingest/                @go1
+# /internal/app/gateway/               @go1
+# /internal/transport/http/ingest/     @go1
+# /internal/transport/http/gateway/    @go1
+# /internal/usecase/llm/               @go1
+# /internal/usecase/news/              @go1
+# /internal/worker/                    @go1
+# /internal/infra/newsfeed/            @go1
+# /internal/infra/llmprovider/         @go1
+# /configs/                            @go1
+# /deployments/                        @go1
+# /scripts/                            @go1
+# /.github/                            @go1
+# /Makefile                            @go1
+# /.golangci.yml                       @go1
+
+# Go #2 — Client Context Engine, ранжирование, BFF, фронт
+# /cmd/go-api/                         @go2
+# /internal/app/api/                   @go2
+# /internal/transport/http/api/        @go2
+# /internal/usecase/company/           @go2
+# /web/                                @go2
+
+# Java и Python
+# /services/java-agent/                @java
+# /services/py-ml/                     @python
+
+# Общее: ревью от двух Go-разработчиков, потому что ломает всех
+# /internal/domain/                    @go1 @go2
+# /internal/config/                    @go1 @go2
+# /internal/infra/db/postgres/         @go1 @go2
+# /api/openapi/                        @go1 @go2
+# /go.mod                              @go1 @go2
+# /go.sum                              @go1 @go2
