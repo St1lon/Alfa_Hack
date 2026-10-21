@@ -24,7 +24,7 @@ tidy:
 	$(GO) mod tidy
 
 fmt:
-	gofmt -w ./cmd ./internal
+	gofmt -w ./internal ./services
 
 lint:
 	golangci-lint run ./...
@@ -36,9 +36,9 @@ test-race:
 	$(GO) test -race ./...
 
 build:
-	$(GO) build -trimpath -o bin/go-ingest ./cmd/go-ingest
-	$(GO) build -trimpath -o bin/llm-gateway ./cmd/llm-gateway
-	$(GO) build -trimpath -o bin/go-api ./cmd/go-api
+	$(GO) build -trimpath -o bin/go-ingest ./services/go-ingest/cmd
+	$(GO) build -trimpath -o bin/llm-gateway ./services/llm-gateway/cmd
+	$(GO) build -trimpath -o bin/go-api ./services/go-api/cmd
 
 up:
 	$(COMPOSE) up --build

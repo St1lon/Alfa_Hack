@@ -122,20 +122,30 @@ make migrate-up   # применить миграции к локальной б
 
 ## Структура репозитория
 
+Каждый сервис — своя папка в `services/`, у Go-сервисов внутри свой `internal/`:
+компилятор не даст одному сервису залезть в потроха другого. Общий код —
+в корневом `internal/`.
+
 ```
-api/openapi/          контракты REST (пишутся руками, держатся в синхроне с кодом)
-cmd/                  точки входа Go-сервисов: go-ingest, llm-gateway, go-api
-configs/llm.yaml      allowlist моделей, маршрутизация задач, цены
-deployments/          docker-compose и Dockerfile'ы
-docs/                 план команды и трекер прогресса
-internal/
-  domain/             сущности, sentinel-ошибки, правила дедупа и статусной машины
-  usecase/            по пакету на use case, порты объявлены рядом с потребителем
-  infra/              Postgres, парсер лент, клиент провайдера моделей
-  transport/http/      роутеры и хендлеры по сервисам
-  worker/             воркер опроса лент
-  app/                composition root каждого сервиса
-scripts/smoke.sh      смоук-тест живого контура
-services/py-ml/       скелет Python-сервиса
-services/java-agent/  скелет Java-сервиса
+api/openapi/              контракты REST (пишутся руками, держатся в синхроне с кодом)
+configs/llm.yaml          allowlist моделей, маршрутизация задач, цены
+deployments/              docker-compose и Dockerfile'ы
+docs/                     задание кейса, план команды, трекер прогресса
+internal/                 ОБЩЕЕ для всех Go-сервисов
+  domain/                 сущности, sentinel-ошибки, дедуп, статусная машина
+  config/                 HTTPConfig, PostgresConfig, Parse
+  infra/db/postgres/      пул, транзакции, хелперы ошибок, миграции
+  transport/http/         http.Server, apierrors, middleware
+  usecase/common/         TxManager
+services/
+  go-ingest/              Go #1: парсер лент, дедуп, оркестратор, SSE
+    cmd/                  точка входа
+    internal/             app, config, usecase, repository, infra, transport, worker
+  llm-gateway/            Go #1: allowlist моделей, кэш, бюджет, аудит
+  go-api/                 Go #2: Client Context Engine, ранжирование, BFF
+  java-agent/             Java: агентное ядро и Hybrid RAG
+  py-ml/                  Python: эмбеддинги, шум, сюжеты
+scripts/                  smoke.sh и загрузка данных кейса
 ```
+
+Кто какие файлы правит — [CLAUDE.md §13](CLAUDE.md).

@@ -11,7 +11,7 @@ RUN go mod download
 
 COPY . .
 ARG SERVICE
-RUN test -n "$SERVICE" && go build -trimpath -o /out/service ./cmd/${SERVICE}
+RUN test -n "$SERVICE" && go build -trimpath -o /out/service ./services/${SERVICE}/cmd
 
 FROM alpine:3.20
 RUN apk add --no-cache wget ca-certificates && adduser -D -u 10001 app

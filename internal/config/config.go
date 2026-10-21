@@ -36,8 +36,8 @@ type PostgresConfig struct {
 	MaxConns int32  `env:"PG_MAX_CONNS" envDefault:"10" validate:"min=1"`
 }
 
-// parse читает env в cfg и валидирует результат.
-func parse(cfg any, validate *validator.Validate) error {
+// Parse читает env в cfg и валидирует результат. Вызывается из Load каждого сервиса.
+func Parse(cfg any, validate *validator.Validate) error {
 	if err := env.Parse(cfg); err != nil {
 		return fmt.Errorf("parse env: %w", err)
 	}

@@ -14,6 +14,32 @@ sentinel-ошибки, миграции отдельным шагом), но с�
 
 Зависимости направлены строго внутрь:
 
+**Папка на сервис.** Каждый сервис (включая Java и Python) живёт в `services/<имя>/`,
+у Go-сервисов внутри свой `internal/` — компилятор физически не даст одному сервису
+импортировать потроха другого. Общий код — в корневом `internal/`.
+
+```
+internal/                     общее для всех Go-сервисов
+  domain/                     сущности и sentinel-ошибки
+  config/                     HTTPConfig, PostgresConfig, Parse
+  infra/db/postgres/          пул, транзакции, хелперы ошибок, миграции
+  transport/http/             http.Server, apierrors, middleware
+  usecase/common/             TxManager и прочее общее
+  app/                        логгер
+services/<svc>/
+  cmd/main.go                 только конфиг, логгер и запуск app.Build/Run/Shutdown
+  internal/
+    app/                      composition root: ручная сборка, lifecycle
+    config/                   конфиг сервиса поверх общих блоков
+    usecase/                  один пакет на use case, порты рядом с потребителем
+    repository/               pgx-реализации портов этого сервиса
+    infra/                    клиенты и адаптеры этого сервиса
+    transport/http/           хендлеры и роутер
+    worker/                   фоновые воркеры, если есть
+```
+
+Внутри сервиса зависимости направлены строго внутрь:
+
 ```
 domain     → чистые сущности + sentinel-ошибки. Ноль импортов фреймворков/инфры/SQL/HTTP.
 usecase/   → один пакет на use case. Порты (интерфейсы) объявляются ЛОКАЛЬНО в пакете
@@ -21,8 +47,10 @@ usecase/   → один пакет на use case. Порты (интерфейс
 infra/     → конкретные адаптеры: репозитории БД, HTTP-клиенты, парсеры лент, провайдер LLM.
 transport/ → HTTP — входные точки, транслируют wire DTO ↔ usecase Request/Result через mapper.
 app/       → composition root: ручная сборка зависимостей (Build), lifecycle (Run/Shutdown).
-cmd/<svc>/ → main.go: только конфиг, логгер и запуск app.Build/Run/Shutdown.
 ```
+
+Код переезжает в корневой `internal/` только когда он реально нужен двум сервисам,
+и это изменение согласовывается: корневой `internal/` — общая зона (§13).
 
 Правила границ:
 
@@ -140,13 +168,17 @@ DI-контейнер не используем. Сборка — в `app.Build(
 
 | Путь | Владелец |
 |---|---|
-| `cmd/go-ingest`, `internal/app/ingest`, `internal/transport/http/ingest`, `internal/worker/**`, `internal/infra/newsfeed` | Go #1 |
-| `cmd/llm-gateway`, `internal/app/gateway`, `internal/transport/http/gateway`, `internal/usecase/llm/**`, `internal/infra/llmprovider`, `configs/llm.yaml` | Go #1 |
+| `services/go-ingest/**` — парсер, дедуп, оркестратор, SSE | Go #1 |
+| `services/llm-gateway/**`, `configs/llm.yaml` | Go #1 |
 | `deployments/**`, `scripts/**`, `.github/**`, `Makefile`, `.golangci.yml` | Go #1 |
-| `cmd/go-api`, `internal/app/api`, `internal/transport/http/api`, `internal/usecase/company/**`, `web/**` (фронт) | Go #2 |
+| `services/go-api/**`, `web/**` (фронт) | Go #2 |
 | `services/java-agent/**` | Java |
 | `services/py-ml/**` | Python |
-| `internal/domain/**`, `internal/config/**`, `internal/infra/db/postgres/{pool,tx}.go`, `api/openapi/**` | общее, меняется по согласованию |
+| корневой `internal/**` (domain, конфиг-блоки, пул БД, HTTP-сервер, миграции), `api/openapi/**` | общее, по согласованию |
+
+Чужой `services/<svc>/internal/...` импортировать нельзя — это запрещает сам
+компилятор Go, а не договорённость. Если код понадобился двоим, он переезжает
+в корневой `internal/` отдельным PR.
 
 **Миграции — номера разведены по диапазонам**, чтобы два человека не создали
 `00003_` одновременно:

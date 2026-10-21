@@ -81,13 +81,13 @@
 | G1-01 | Схема БД: 26 таблиц, pgvector, справочники, миграции | P0 | ✅ | [migrations/](../internal/infra/db/postgres/migrations) |
 | G1-02 | `docker-compose` на 6 сервисов, миграции отдельным job, healthchecks | — | ✅ | [deployments/](../deployments) |
 | G1-03 | Скелеты всех четырёх сервисов со заглушками 501 | — | ✅ | `cmd/`, `services/py-ml`, `services/java-agent` |
-| G1-04 | Парсер лент: RSS и Atom, windows-1251, дотягивание статьи по ссылке | P0 | ✅ | [newsfeed/](../internal/infra/newsfeed) |
+| G1-04 | Парсер лент: RSS и Atom, windows-1251, дотягивание статьи по ссылке | P0 | ✅ | [newsfeed/](../services/go-ingest/internal/infra/newsfeed) |
 | G1-04а | Классификация и выделение ключевой информации из материалов (требование ТЗ к парсеру) | P0 | ⏳ | Реализуется питонистом (P-02, P-03) и агентом Java; на защите отвечает владелец парсера |
 | G1-05 | Дедуп по канонизированному URL и хэшу нормализованного текста | P0 | ✅ | [domain/dedup.go](../internal/domain/dedup.go) |
-| G1-06 | Воркер опроса источников по интервалу из БД | P0 | ✅ | [newspoller/](../internal/worker/newspoller) |
-| G1-07 | Вброс произвольной новости: `POST /v1/news` | P1 | ✅ | [transport/http/ingest](../internal/transport/http/ingest) |
-| G1-08 | SSE-стрим статусов пайплайна с докруткой по `Last-Event-ID` | P1 | ✅ | [sse.go](../internal/transport/http/ingest/sse.go) |
-| G1-09 | LLM-Gateway: allowlist, маршрутизация по задачам, кэш, бюджет, аудит | P0 | ✅ | [usecase/llm/complete](../internal/usecase/llm/complete) |
+| G1-06 | Воркер опроса источников по интервалу из БД | P0 | ✅ | [newspoller/](../services/go-ingest/internal/worker/newspoller) |
+| G1-07 | Вброс произвольной новости: `POST /v1/news` | P1 | ✅ | [transport/http/ingest](../services/go-ingest/internal/transport/http) |
+| G1-08 | SSE-стрим статусов пайплайна с докруткой по `Last-Event-ID` | P1 | ✅ | [sse.go](../services/go-ingest/internal/transport/http/sse.go) |
+| G1-09 | LLM-Gateway: allowlist, маршрутизация по задачам, кэш, бюджет, аудит | P0 | ✅ | [usecase/llm/complete](../services/llm-gateway/internal/usecase/llm/complete) |
 | G1-10 | `/healthz`, `/readyz`, `/metrics` у Go-сервисов | P2 | ✅ | по сервисам |
 | G1-11 | OpenAPI-контракты go-ingest и llm-gateway | — | ✅ | [api/openapi/](../api/openapi) |
 | G1-12 | Смоук-тест живого контура | — | ✅ | [scripts/smoke.sh](../scripts/smoke.sh), `make smoke` |
@@ -110,7 +110,7 @@
 
 ## Go #2 — Client Context Engine, ранжирование, BFF, продукт
 
-Скелет сервиса заведён (`cmd/go-api`, `internal/app/api`, `internal/transport/http/api`):
+Скелет сервиса заведён — вся зона в `services/go-api/`:
 поднимается, health-пробы зелёные, пути BFF зарезервированы и отвечают 501.
 Таблицы `companies`, `company_persons`, `counterparty_edges`, `company_features`,
 `company_overrides`, `story_company_scores`, `feedback` в БД уже есть.
@@ -178,7 +178,16 @@
 
 ### Д2 — 21.10.2026
 
-**Go #1.** Сверили решение с первоисточником: ТЗ положено в репозиторий
+**Go #1, раскладка репозитория.** Go-сервисы переехали в `services/` — теперь все
+пять сервисов лежат одинаково. У каждого Go-сервиса свой `internal/`, поэтому
+залезть в чужие потроха не даёт компилятор, а не договорённость: на первой же
+сборке он поймал, что `go-api` импортировал репозиторий `go-ingest` ради
+health-пробы — развели через общий `postgres.Health`. Общее (domain, конфиг-блоки,
+пул БД, HTTP-сервер, миграции) осталось в корневом `internal/`. Карта владения
+и правила — CLAUDE.md §1 и §13. Проверено: сборка, тесты, линтер, `docker compose
+up --build` и смоук проходят на новой раскладке.
+
+**Go #1, сверка с ТЗ.** ТЗ положено в репозиторий
 ([CASE.pdf](CASE.pdf), текстом — [CASE.txt](CASE.txt)), данные кейса скачаны.
 
 - `bash scripts/fetch_case_data.sh` тянет все 12 файлов по ссылкам из Приложений 1 и 2:
