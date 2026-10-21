@@ -22,7 +22,7 @@ func TestParsePipelineStatus(t *testing.T) {
 func TestPipelineStatusID(t *testing.T) {
 	t.Parallel()
 
-	// id должны совпадать со справочником pipeline_statuses из миграции 00001.
+	// id должны совпадать со справочником pipeline_statuses из миграций 00001 и 00003.
 	expected := map[domain.PipelineStatus]int16{
 		domain.StatusRaw:       1,
 		domain.StatusDeduped:   2,
@@ -31,6 +31,7 @@ func TestPipelineStatusID(t *testing.T) {
 		domain.StatusAnalyzed:  5,
 		domain.StatusPublished: 6,
 		domain.StatusFailed:    7,
+		domain.StatusFiltered:  8,
 	}
 
 	for status, want := range expected {
@@ -60,6 +61,11 @@ func TestPipelineTransitions(t *testing.T) {
 	// Из любого шага можно упасть в FAILED и вернуться на повтор.
 	require.True(t, domain.StatusScored.CanTransitionTo(domain.StatusFailed))
 	require.True(t, domain.StatusFailed.CanTransitionTo(domain.StatusRaw))
+
+	// Шум отсеивается до обогащения, нерелевантный сюжет — после подбора компаний.
+	require.True(t, domain.StatusDeduped.CanTransitionTo(domain.StatusFiltered))
+	require.True(t, domain.StatusScored.CanTransitionTo(domain.StatusFiltered))
+	require.False(t, domain.StatusFiltered.CanTransitionTo(domain.StatusRaw), "FILTERED — терминальный")
 
 	// PUBLISHED — терминальный статус.
 	require.False(t, domain.StatusPublished.CanTransitionTo(domain.StatusAnalyzed))

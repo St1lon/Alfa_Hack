@@ -97,6 +97,13 @@ linters:
       # Default: false
       require-specific: true
 
+    wrapcheck:
+      # stage — общий помощник этапов оркестратора: он возвращает ошибки
+      # репозиториев, уже обёрнутые с контекстом. Второе оборачивание в каждом
+      # из пяти этапов ничего не добавляет к сообщению.
+      ignore-package-globs:
+        - github.com/st1lon/alfa-hack/services/go-ingest/internal/usecase/pipeline/stage
+
     perfsprint:
       # Disable suggesting string concatenation
       # Default: true

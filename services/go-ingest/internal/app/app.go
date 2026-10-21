@@ -18,6 +18,7 @@ import (
 	ingesthttp "github.com/st1lon/alfa-hack/services/go-ingest/internal/transport/http"
 	ingestnews "github.com/st1lon/alfa-hack/services/go-ingest/internal/usecase/news/ingest"
 	"github.com/st1lon/alfa-hack/services/go-ingest/internal/worker/newspoller"
+	"github.com/st1lon/alfa-hack/services/go-ingest/internal/worker/orchestrator"
 )
 
 // App держит собранные ресурсы go-ingest.
@@ -27,9 +28,11 @@ type App struct {
 	pool   *pgxpool.Pool
 	http   *httpx.Server
 	poller *newspoller.Worker
+	// orchestrator — воркер пайплайна; nil, если выключен (INGEST_ORCH_ENABLED=false).
+	orchestrator *orchestrator.Worker
 }
 
-// Build собирает сервис: пул БД, репозитории, usecase, воркер лент, HTTP.
+// Build собирает сервис: пул БД, репозитории, usecase, воркеры лент и пайплайна, HTTP.
 func Build(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, error) {
 	pool, err := postgres.NewPool(ctx, postgres.PoolConfig{
 		Host:     cfg.PG.Host,
@@ -71,6 +74,15 @@ func Build(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, err
 		)
 	}
 
+	var orch *orchestrator.Worker
+	if cfg.Orchestrator.Enabled {
+		orch, err = buildOrchestrator(cfg, pool, events, log)
+		if err != nil {
+			pool.Close()
+			return nil, fmt.Errorf("build orchestrator: %w", err)
+		}
+	}
+
 	server := httpx.NewServer(httpx.ServerConfig{
 		Host:              cfg.HTTP.Host,
 		Port:              cfg.HTTP.Port,
@@ -80,15 +92,17 @@ func Build(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, err
 		IdleTimeout:       cfg.HTTP.IdleTimeout,
 	}, ingesthttp.NewRouter(handlers))
 
-	return &App{cfg: cfg, log: log, pool: pool, http: server, poller: poller}, nil
+	return &App{cfg: cfg, log: log, pool: pool, http: server, poller: poller, orchestrator: orch}, nil
 }
 
-// Run запускает HTTP-сервер и воркер опроса лент до отмены контекста.
+// Run запускает HTTP-сервер, воркер опроса лент и оркестратор до отмены контекста.
 func (a *App) Run(ctx context.Context) error {
 	a.log.Info("starting go-ingest",
 		slog.String("host", a.cfg.HTTP.Host),
 		slog.Int("port", a.cfg.HTTP.Port),
 		slog.Bool("poller_enabled", a.cfg.Poller.Enabled),
+		slog.Bool("orchestrator_enabled", a.orchestrator != nil),
+		slog.Bool("ml_fallback", a.cfg.UseMLFallback),
 	)
 
 	group, groupCtx := errgroup.WithContext(ctx)
@@ -103,6 +117,12 @@ func (a *App) Run(ctx context.Context) error {
 	if a.poller != nil {
 		group.Go(func() error {
 			return a.poller.Run(groupCtx)
+		})
+	}
+
+	if a.orchestrator != nil {
+		group.Go(func() error {
+			return a.orchestrator.Run(groupCtx)
 		})
 	}
 
