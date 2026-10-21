@@ -18,37 +18,39 @@
 
 ## Быстрый старт
 
-Нужны только Docker и Docker Compose. Сначала данные кейса (один раз, ~150 МБ):
+Нужны Docker с Docker Compose и bash (на Windows — Git Bash). `make` не обязателен:
+ниже везде сначала прямая команда, `make`-цель — только сокращение для тех, у кого он есть.
+
+**1. Данные кейса** (один раз, ~150 МБ, около трёх минут):
 
 ```bash
-make data
+bash scripts/fetch_case_data.sh
 ```
 
-Потом весь стек:
+**2. Весь стек:**
 
 ```bash
-docker compose -f deployments/docker-compose.yaml up --build
+docker compose -f deployments/docker-compose.yaml up --build -d
 ```
 
 Вместе со стеком один раз отработает `research-loader`: распознаёт 9 PDF аналитики
 ЦМИ и кладёт чанки в базу. Первый прогон — несколько минут (это сканы, нужен OCR),
-дальше он пропускает уже загруженное. Отдельно его можно запустить так:
+дальше он пропускает уже загруженное.
+
+**3. Проверить, что всё живо:**
 
 ```bash
-make research
+bash scripts/smoke.sh
 ```
 
-Только Go-контур и база (быстрее, без сборки Java и Python):
-
-```bash
-make up-go
-```
-
-Проверить, что всё живо:
-
-```bash
-make smoke
-```
+| Задача | Команда | `make` |
+|---|---|---|
+| данные кейса | `bash scripts/fetch_case_data.sh` | `make data` |
+| весь стек | `docker compose -f deployments/docker-compose.yaml up --build -d` | `make up` |
+| только Go-контур и база | `docker compose -f deployments/docker-compose.yaml up --build -d postgres migrate db-roles go-ingest llm-gateway go-api` | `make up-go` |
+| перезалить аналитику ЦМИ | `docker compose -f deployments/docker-compose.yaml run --rm -e RESEARCH_FORCE=true research-loader` | `make research-force` |
+| смоук-тест | `bash scripts/smoke.sh` | `make smoke` |
+| остановить и удалить данные стека | `docker compose -f deployments/docker-compose.yaml down -v` | `make down` |
 
 | Сервис | Порт | Владелец | Состояние |
 |---|---|---|---|
