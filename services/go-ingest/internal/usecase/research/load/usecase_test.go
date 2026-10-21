@@ -88,7 +88,7 @@ func TestLoadResearchStoresChunksWithPages(t *testing.T) {
 	extractor := &stubExtractor{pages: map[string][]string{
 		"rate.pdf": {pageText, "Обложка без текста", pageText},
 	}}
-	uc := loadresearch.NewUsecase(repo, extractor, tx, nil, chunking)
+	uc := loadresearch.NewUsecase(repo, extractor, nil, tx, nil, chunking)
 
 	result, err := uc.Execute(context.Background(), &loadresearch.Request{
 		Dir:       dir,
@@ -116,6 +116,42 @@ func TestLoadResearchStoresChunksWithPages(t *testing.T) {
 	require.False(t, pages[2], "страница без текста не даёт чанков")
 }
 
+// stubClassifier размечает любой текст ставкой — проверяем, что разметка
+// доезжает до сохранённого чанка.
+type stubClassifier struct{ calls int }
+
+func (s *stubClassifier) Classify(string) ([]domain.OKVEDHint, []domain.Entity) {
+	s.calls++
+	return []domain.OKVEDHint{{Code: "64", Label: "Финансы и банки", Weight: 1}},
+		[]domain.Entity{{Type: domain.EntityRiskTag, Value: "rate_risk", Mentions: 2}}
+}
+
+func TestLoadResearchClassifiesChunks(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	touch(t, dir, "rate.pdf")
+
+	repo := newStubRepo()
+	classifier := &stubClassifier{}
+	extractor := &stubExtractor{pages: map[string][]string{"rate.pdf": {pageText}}}
+	uc := loadresearch.NewUsecase(repo, extractor, classifier, &stubTx{}, nil, chunking)
+
+	_, err := uc.Execute(context.Background(), &loadresearch.Request{
+		Dir:       dir,
+		Documents: []loadresearch.DocumentSpec{{Code: "rate", Title: "Ставка", File: "rate.pdf"}},
+	})
+
+	require.NoError(t, err)
+	chunks := repo.saved["rate"]
+	require.NotEmpty(t, chunks)
+	require.Equal(t, len(chunks), classifier.calls, "каждый чанк размечается")
+	for _, chunk := range chunks {
+		require.Equal(t, "64", chunk.OKVEDHints[0].Code)
+		require.Equal(t, "rate_risk", chunk.Entities[0].Value)
+	}
+}
+
 func TestLoadResearchSkipsAlreadyLoaded(t *testing.T) {
 	t.Parallel()
 
@@ -125,7 +161,7 @@ func TestLoadResearchSkipsAlreadyLoaded(t *testing.T) {
 	repo := newStubRepo()
 	repo.existing["policy_rate"] = 5
 	extractor := &stubExtractor{pages: map[string][]string{"rate.pdf": {pageText}}}
-	uc := loadresearch.NewUsecase(repo, extractor, &stubTx{}, nil, chunking)
+	uc := loadresearch.NewUsecase(repo, extractor, nil, &stubTx{}, nil, chunking)
 
 	req := &loadresearch.Request{
 		Dir:       dir,
@@ -154,7 +190,7 @@ func TestLoadResearchFailureDoesNotStopOthers(t *testing.T) {
 		"good.pdf":  {pageText},
 		"blank.pdf": {"*", ""},
 	}}
-	uc := loadresearch.NewUsecase(repo, extractor, &stubTx{}, nil, chunking)
+	uc := loadresearch.NewUsecase(repo, extractor, nil, &stubTx{}, nil, chunking)
 
 	result, err := uc.Execute(context.Background(), &loadresearch.Request{
 		Dir: dir,
@@ -177,7 +213,7 @@ func TestLoadResearchFailureDoesNotStopOthers(t *testing.T) {
 func TestLoadResearchValidation(t *testing.T) {
 	t.Parallel()
 
-	uc := loadresearch.NewUsecase(newStubRepo(), &stubExtractor{}, &stubTx{}, nil, chunking)
+	uc := loadresearch.NewUsecase(newStubRepo(), &stubExtractor{}, nil, &stubTx{}, nil, chunking)
 
 	cases := map[string]*loadresearch.Request{
 		"пустой манифест": {Dir: "data"},
@@ -207,7 +243,7 @@ func TestLoadResearchReportsSaveError(t *testing.T) {
 	repo := newStubRepo()
 	repo.saveErr = errors.New("connection reset")
 	extractor := &stubExtractor{pages: map[string][]string{"rate.pdf": {pageText}}}
-	uc := loadresearch.NewUsecase(repo, extractor, &stubTx{}, nil, chunking)
+	uc := loadresearch.NewUsecase(repo, extractor, nil, &stubTx{}, nil, chunking)
 
 	result, err := uc.Execute(context.Background(), &loadresearch.Request{
 		Dir:       dir,

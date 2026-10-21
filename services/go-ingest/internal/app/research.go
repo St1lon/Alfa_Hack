@@ -7,6 +7,7 @@ import (
 
 	"github.com/st1lon/alfa-hack/internal/infra/db/postgres"
 	"github.com/st1lon/alfa-hack/services/go-ingest/internal/config"
+	"github.com/st1lon/alfa-hack/services/go-ingest/internal/infra/enricher"
 	"github.com/st1lon/alfa-hack/services/go-ingest/internal/infra/ocr"
 	"github.com/st1lon/alfa-hack/services/go-ingest/internal/repository"
 	loadresearch "github.com/st1lon/alfa-hack/services/go-ingest/internal/usecase/research/load"
@@ -18,6 +19,12 @@ func RunResearchLoader(ctx context.Context, cfg *config.ResearchLoader, log *slo
 	req, err := researchRequest(cfg)
 	if err != nil {
 		return nil, err
+	}
+
+	// Тот же словарь, что у новостей: агент сопоставит тему новости и чанка напрямую.
+	classifier, err := enricher.LoadDictionary(cfg.Research.EnrichmentDictionary)
+	if err != nil {
+		return nil, fmt.Errorf("load enrichment dictionary: %w", err)
 	}
 
 	pool, err := postgres.NewPool(ctx, postgres.PoolConfig{
@@ -45,6 +52,7 @@ func RunResearchLoader(ctx context.Context, cfg *config.ResearchLoader, log *slo
 	usecase := loadresearch.NewUsecase(
 		repository.NewResearchRepo(pool),
 		extractor,
+		classifier,
 		postgres.NewTxManager(pool),
 		repository.NewPipelineRepo(pool),
 		loadresearch.ChunkConfig{

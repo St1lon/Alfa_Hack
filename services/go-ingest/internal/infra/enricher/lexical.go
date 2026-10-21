@@ -113,13 +113,37 @@ func NewLexical(dict Dictionary) (*Lexical, error) {
 // сигнатура совпадает с py-ml-клиентом, чтобы оба реализовали один порт.
 func (l *Lexical) Enrich(_ context.Context, news *domain.News) (*domain.Enrichment, error) {
 	doc := prepare(news.Title, news.Body)
+	hints, entities, sig := l.analyze(doc)
+	sig.titleNoise, sig.bodyNoise = doc.split(l.noise)
 
-	enrichment := &domain.Enrichment{
+	return &domain.Enrichment{
 		NewsID:       news.ID,
+		OKVEDHints:   hints,
+		Entities:     entities,
+		NoiseScore:   sig.noiseScore(),
 		ModelVersion: l.version,
-	}
+	}, nil
+}
 
-	var sig signals
+// Classify размечает произвольный текст — например, чанк аналитики ЦМИ — теми же
+// отраслями, странами, сырьём и риск-тегами, что и новости. Оценки шума тут нет:
+// аналитика банка шумом не бывает.
+func (l *Lexical) Classify(text string) ([]domain.OKVEDHint, []domain.Entity) {
+	hints, entities, _ := l.analyze(prepare("", text))
+	return hints, entities
+}
+
+// Version — версия словаря, которой сделана разметка.
+func (l *Lexical) Version() string {
+	return l.version
+}
+
+// analyze находит в тексте отрасли и сущности и считает бизнес-сигнал.
+func (l *Lexical) analyze(doc text) ([]domain.OKVEDHint, []domain.Entity, signals) {
+	var (
+		sig      signals
+		entities []domain.Entity
+	)
 
 	industryScores := make(map[string]int)
 	for _, group := range l.industries {
@@ -130,7 +154,6 @@ func (l *Lexical) Enrich(_ context.Context, news *domain.News) (*domain.Enrichme
 			sig.bodyBusiness += body
 		}
 	}
-	enrichment.OKVEDHints = topHints(l.industries, industryScores)
 
 	for _, set := range []struct {
 		kind   domain.EntityType
@@ -145,7 +168,7 @@ func (l *Lexical) Enrich(_ context.Context, news *domain.News) (*domain.Enrichme
 			if title+body == 0 {
 				continue
 			}
-			enrichment.Entities = append(enrichment.Entities, domain.Entity{
+			entities = append(entities, domain.Entity{
 				Type: set.kind, Value: group.key, Mentions: titleWeight*title + body,
 			})
 			// страна сама по себе — не бизнес-сигнал (политика её тоже упоминает)
@@ -156,9 +179,7 @@ func (l *Lexical) Enrich(_ context.Context, news *domain.News) (*domain.Enrichme
 		}
 	}
 
-	sig.titleNoise, sig.bodyNoise = doc.split(l.noise)
-	enrichment.NoiseScore = sig.noiseScore()
-	return enrichment, nil
+	return topHints(l.industries, industryScores), entities, sig
 }
 
 // signals — счётчики бизнес-сигнала и маркеров шума отдельно по заголовку и телу.

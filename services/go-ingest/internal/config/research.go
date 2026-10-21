@@ -32,6 +32,8 @@ type ResearchConfig struct {
 	OCRPageTimeout time.Duration `env:"OCR_PAGE_TIMEOUT" envDefault:"120s"`
 	// OCRCacheDir — кэш распознанных страниц; пусто — без кэша.
 	OCRCacheDir string `env:"OCR_CACHE_DIR" envDefault:"data/research/.ocr-cache"`
+	// EnrichmentDictionary — словарь классификации чанков, тот же, что у новостей.
+	EnrichmentDictionary string `env:"ENRICHMENT_DICTIONARY" envDefault:"configs/enrichment.yaml"`
 
 	// Размеры чанков в символах: ~3 символа на токен, итого 300–600 токенов.
 	ChunkMinRunes    int `env:"CHUNK_MIN_RUNES"   envDefault:"900" validate:"min=1"`

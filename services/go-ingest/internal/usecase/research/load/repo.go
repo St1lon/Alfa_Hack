@@ -21,6 +21,12 @@ type PageExtractor interface {
 	ExtractPages(ctx context.Context, path string) ([]string, error)
 }
 
+// Classifier — порт классификации текста чанка (отрасли, страны, сырьё,
+// риск-теги). Необязательный: без него чанки сохраняются без разметки.
+type Classifier interface {
+	Classify(text string) ([]domain.OKVEDHint, []domain.Entity)
+}
+
 // EventSink — порт журнала событий пайплайна (источник SSE).
 type EventSink interface {
 	Append(

@@ -25,4 +25,8 @@ type ResearchChunk struct {
 	ChunkIndex int
 	Text       string
 	Tokens     int
+	// OKVEDHints и Entities — классификация чанка тем же словарём, что и
+	// новостей: агент сужает поиск позиции банка до чанков нужной темы.
+	OKVEDHints []OKVEDHint
+	Entities   []Entity
 }

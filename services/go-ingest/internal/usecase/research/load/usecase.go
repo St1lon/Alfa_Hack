@@ -20,22 +20,24 @@ const serviceName = "go-ingest"
 
 // Usecase — загрузка аналитики банка.
 type Usecase struct {
-	repo      ResearchRepo
-	extractor PageExtractor
-	txm       common.TxManager
-	events    EventSink
-	chunking  ChunkConfig
+	repo       ResearchRepo
+	extractor  PageExtractor
+	classifier Classifier // может быть nil — тогда чанки без разметки
+	txm        common.TxManager
+	events     EventSink
+	chunking   ChunkConfig
 }
 
 // NewUsecase создаёт usecase загрузки аналитики.
 func NewUsecase(
 	repo ResearchRepo,
 	extractor PageExtractor,
+	classifier Classifier,
 	txm common.TxManager,
 	events EventSink,
 	chunking ChunkConfig,
 ) *Usecase {
-	return &Usecase{repo: repo, extractor: extractor, txm: txm, events: events, chunking: chunking}
+	return &Usecase{repo: repo, extractor: extractor, classifier: classifier, txm: txm, events: events, chunking: chunking}
 }
 
 // Execute загружает документы по манифесту. Сбой одного документа не валит
@@ -117,13 +119,17 @@ func (uc *Usecase) buildChunks(pages []string) []domain.ResearchChunk {
 	for i, raw := range pages {
 		page := i + 1
 		for _, draft := range splitChunks(page, cleanPage(raw), uc.chunking) {
-			chunks = append(chunks, domain.ResearchChunk{
+			chunk := domain.ResearchChunk{
 				ID:         uuid.New(),
 				Page:       draft.page,
 				ChunkIndex: len(chunks),
 				Text:       draft.text,
 				Tokens:     estimateTokens(draft.text),
-			})
+			}
+			if uc.classifier != nil {
+				chunk.OKVEDHints, chunk.Entities = uc.classifier.Classify(draft.text)
+			}
+			chunks = append(chunks, chunk)
 		}
 	}
 	return chunks

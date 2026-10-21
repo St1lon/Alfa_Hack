@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -71,26 +72,44 @@ func (r *ResearchRepo) ReplaceDocument(
 	// Одна вставка через unnest вместо сотни отдельных INSERT.
 	// int32 — под тип integer в Postgres; страницы, индексы и токены далеко от предела.
 	const insertChunks = `
-		INSERT INTO research_chunks (id, document_id, page, chunk_index, text, tokens)
-		SELECT id, $1, page, chunk_index, text, tokens
-		FROM unnest($2::uuid[], $3::int[], $4::int[], $5::text[], $6::int[])
-		     AS t(id, page, chunk_index, text, tokens)`
+		INSERT INTO research_chunks (id, document_id, page, chunk_index, text, tokens, okved_hints, entities)
+		SELECT id, $1, page, chunk_index, text, tokens, hints::jsonb, entities::jsonb
+		FROM unnest($2::uuid[], $3::int[], $4::int[], $5::text[], $6::int[], $7::text[], $8::text[])
+		     AS t(id, page, chunk_index, text, tokens, hints, entities)`
 
 	ids := make([]uuid.UUID, len(chunks))
 	pages := make([]int32, len(chunks))
 	indexes := make([]int32, len(chunks))
 	texts := make([]string, len(chunks))
 	tokens := make([]int32, len(chunks))
+	hints := make([]string, len(chunks))
+	entities := make([]string, len(chunks))
 	for i, chunk := range chunks {
 		ids[i] = chunk.ID
 		pages[i] = int32(chunk.Page)
 		indexes[i] = int32(chunk.ChunkIndex)
 		texts[i] = chunk.Text
 		tokens[i] = int32(chunk.Tokens)
+		hints[i], entities[i] = chunkTagsJSON(chunk)
 	}
 
-	if _, err := q.Exec(ctx, insertChunks, doc.ID, ids, pages, indexes, texts, tokens); err != nil {
+	if _, err := q.Exec(ctx, insertChunks, doc.ID, ids, pages, indexes, texts, tokens, hints, entities); err != nil {
 		return fmt.Errorf("insert research chunks: %w", err)
 	}
 	return nil
+}
+
+// chunkTagsJSON — разметка чанка в той же JSON-форме, что news_enrichment.
+func chunkTagsJSON(chunk domain.ResearchChunk) (string, string) {
+	hints := make([]enrichmentHint, 0, len(chunk.OKVEDHints))
+	for _, h := range chunk.OKVEDHints {
+		hints = append(hints, enrichmentHint{Code: h.Code, Label: h.Label, Weight: h.Weight})
+	}
+	entities := make([]enrichmentEntity, 0, len(chunk.Entities))
+	for _, e := range chunk.Entities {
+		entities = append(entities, enrichmentEntity{Type: string(e.Type), Value: e.Value, Mentions: e.Mentions})
+	}
+	h, _ := json.Marshal(hints)     //nolint:errchkjson // структуры из строк и чисел маршалятся всегда
+	en, _ := json.Marshal(entities) //nolint:errchkjson // структуры из строк и чисел маршалятся всегда
+	return string(h), string(en)
 }
