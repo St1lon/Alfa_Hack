@@ -15,6 +15,9 @@ var (
 	// Аналитика банка.
 	ErrResearchDocNotFound = errors.New("research document not found")
 	ErrResearchChunkEmpty  = errors.New("research chunk must not be empty")
+	ErrResearchFileMissing = errors.New("research file not found")
+	ErrInvalidResearchSpec = errors.New("invalid research document spec")
+	ErrResearchNoText      = errors.New("no usable text extracted from research document")
 
 	// Компании.
 	ErrCompanyNotFound = errors.New("company not found")

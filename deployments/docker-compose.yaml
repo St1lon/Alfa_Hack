@@ -1,7 +1,9 @@
 name: alfa-hack
 
 # Единый способ запуска всего решения (чеклист сдачи, Ограничение 06).
-# Порты: go-ingest 8080, java-agent 8081, py-ml 8000, go-api 8090, llm-gateway 8091.
+# Порты на хосте: go-ingest 8080, java-agent 8081, py-ml 8000, go-api 8090, llm-gateway 8091,
+# postgres 15432 (не 5432 — чтобы не драться с локальным Postgres разработчика;
+# внутри сети compose база по-прежнему на postgres:5432).
 #
 # Полный стек:        docker compose -f deployments/docker-compose.yaml up --build
 # Только Go-контур:   docker compose -f deployments/docker-compose.yaml up --build postgres migrate go-ingest llm-gateway go-api
@@ -14,7 +16,7 @@ services:
       POSTGRES_PASSWORD: alfa
       POSTGRES_DB: alfa
     ports:
-      - "5432:5432"
+      - "15432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U alfa -d alfa"]
       interval: 3s
@@ -158,5 +160,33 @@ services:
       llm-gateway:
         condition: service_healthy
 
+  # Загрузка аналитики ЦМИ: OCR PDF-сканов → research_chunks (G1-13).
+  # One-shot job: повторный запуск пропускает уже загруженное, OCR-кэш
+  # живёт в томе ocrcache. Ничего от него не зависит — сервисы стартуют
+  # параллельно, а агент Java получит чанки, как только job закончит.
+  # Файлы кладутся заранее: make data.
+  research-loader:
+    build:
+      context: ..
+      dockerfile: deployments/Dockerfile.research-loader
+    env_file:
+      - ../.env.example
+      - path: ../.env
+        required: false
+    environment:
+      ALFA_PG_HOST: postgres
+      RESEARCH_DIR: /data/research
+      RESEARCH_OCR_CACHE_DIR: /cache
+    volumes:
+      - ../data/research:/data/research:ro
+      - ocrcache:/cache
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
 volumes:
   pgdata:
+  ocrcache:

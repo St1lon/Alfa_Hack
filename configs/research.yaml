@@ -1,0 +1,54 @@
+# Аналитические материалы ЦМИ Альфа-Банка (Приложение 2 ТЗ, docs/CASE.pdf).
+#
+# Загружаются утилитой research-loader в research_documents и research_chunks.
+# title и published_at идут в карточку инсайта как источник позиции банка:
+# «Альфа-Банк, <title>, стр. N» — поэтому они взяты с первой страницы самого
+# материала, а не придуманы. Даты, которых в материале нет, не заполняем.
+#
+# Новый материал = новая строка здесь + файл в data/research/. Код не трогаем.
+
+documents:
+  - code: policy_rate_2026_09_11
+    title: "Ключевая ставка ЦБ РФ: ставка без изменения на 14,0%, риторика стала жестче"
+    file: alfa_policy_rate_11sep.pdf
+    published_at: "2026-09-11"
+
+  - code: inflation_2026_08_25_31
+    title: "Инфляция 25–31 августа: основные выводы"
+    file: inflation_tracker_02.pdf
+    published_at: "2026-09-02"
+
+  - code: bond_brief_2026_09_14
+    title: "Бонд Бриф: итоги недели"
+    file: bond_brief_14092026.pdf
+    published_at: "2026-09-14"
+
+  - code: gold_2026_08
+    title: "Обзор рынка золота, август 2026"
+    file: gold_digest_august26.pdf
+    # в материале указан только месяц — точной даты нет
+
+  - code: fi_strategy_3q26
+    title: "Тактический взгляд на 3-й квартал 2026 года: время собирать камни"
+    file: fi_strategy_3q26_22072026.pdf
+    published_at: "2026-07-22"
+
+  - code: macro_stat_7m26
+    title: "Макростатистика 7М26: данные по рынку труда не подтверждают охлаждения экономики"
+    file: alfa_macro_stat_7m26.pdf
+    published_at: "2026-09-07"
+
+  - code: macro_stat_1h26
+    title: "Макростатистика 1П26: слабый рост 1П26 смещает прогноз роста ВВП на 0,1% за год"
+    file: alfa_macro_stat_1h26.pdf
+    published_at: "2026-07-31"
+
+  - code: consumption_peak
+    title: "Потребление на пике"
+    file: alfa_consumption.pdf
+    published_at: "2026-08-05"
+
+  - code: russian_steel_1q21
+    title: "Российская сталь: ралли цен продолжается; прогноз результатов за 1К21"
+    file: alfa_russian_steels_1q21_15apr2021.pdf
+    published_at: "2021-04-15"

@@ -1,0 +1,24 @@
+# syntax=docker/dockerfile:1
+# Утилита загрузки аналитики ЦМИ (services/go-ingest/cmd/research-loader).
+# Отдельный образ, потому что ей нужны poppler и tesseract с русским языком —
+# в основной образ go-ingest эти ~100 МБ тащить незачем.
+FROM golang:1.24 AS build
+WORKDIR /src
+ENV CGO_ENABLED=0 GOTOOLCHAIN=local
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN go build -trimpath -o /out/research-loader ./services/go-ingest/cmd/research-loader
+
+FROM alpine:3.20
+# tesseract-ocr несёт английскую модель, русскую ставим отдельно.
+RUN apk add --no-cache poppler-utils tesseract-ocr tesseract-ocr-data-rus ca-certificates \
+ && adduser -D -u 10001 app \
+ && mkdir -p /cache && chown app /cache
+WORKDIR /app
+COPY --from=build /out/research-loader /usr/local/bin/research-loader
+COPY --from=build /src/configs /app/configs
+USER app
+ENTRYPOINT ["research-loader"]

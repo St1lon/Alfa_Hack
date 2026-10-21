@@ -28,6 +28,8 @@ internal/                     общее для всех Go-сервисов
   app/                        логгер
 services/<svc>/
   cmd/main.go                 только конфиг, логгер и запуск app.Build/Run/Shutdown
+  cmd/<утилита>/main.go       одноразовые утилиты сервиса (например research-loader),
+                              сборка — тоже в internal/app
   internal/
     app/                      composition root: ручная сборка, lifecycle
     config/                   конфиг сервиса поверх общих блоков
