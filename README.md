@@ -11,6 +11,8 @@
 - Что строим и кто за что отвечает — [docs/TEAM_PLAN.md](docs/TEAM_PLAN.md)
 - Статус работ по участникам — [docs/PROGRESS.md](docs/PROGRESS.md)
 - Архитектурные правила репозитория — [CLAUDE.md](CLAUDE.md)
+- Что оркестратор ждёт от сервисов команды — [docs/PIPELINE_CONTRACTS.md](docs/PIPELINE_CONTRACTS.md)
+- Безопасность AI-контура (Ограничение 06) — [docs/SECURITY.md](docs/SECURITY.md)
 
 ---
 
@@ -64,11 +66,14 @@ make smoke
 curl localhost:8080/metrics
 
 # вбросить свою новость — живой путь для демо
-curl -X POST localhost:8080/v1/news -H 'Content-Type: application/json' -d '{
+# (тело через stdin: на Windows `curl -d 'кириллица'` портит текст ещё до сервера)
+curl -X POST localhost:8080/v1/news -H 'Content-Type: application/json; charset=utf-8' --data-binary @- <<'JSON'
+{
   "url": "https://example.com/news/1",
   "title": "РЖД индексирует тарифы на восточном полигоне",
   "body": "Тариф на перевозку неугольных грузов индексируется на 10 процентов с 1 декабря."
-}'
+}
+JSON
 
 # live-панель пайплайна (Server-Sent Events)
 curl -N localhost:8080/v1/pipeline/stream

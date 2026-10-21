@@ -17,6 +17,13 @@ curl -fsS "$API/readyz"; echo
 say "сколько новостей успел собрать парсер"
 curl -fsS "$INGEST/metrics"; echo
 
+# Тело — через stdin, а не аргументом -d: на Windows curl.exe получает аргументы
+# в ANSI-кодировке, и кириллица превращается в символы-заменители ещё до сервера.
+post_news() {
+  printf '%s' "$PAYLOAD" | curl -fsS -X POST "$INGEST/v1/news" \
+    -H 'Content-Type: application/json; charset=utf-8' --data-binary @-
+}
+
 say "вброс новости (уникальный текст)"
 STAMP="$(date +%s)"
 PAYLOAD=$(cat <<JSON
@@ -28,10 +35,10 @@ PAYLOAD=$(cat <<JSON
 }
 JSON
 )
-curl -fsS -X POST "$INGEST/v1/news" -H 'Content-Type: application/json' -d "$PAYLOAD"; echo
+post_news; echo
 
 say "повторный вброс того же текста — ожидаем duplicate:true"
-curl -fsS -X POST "$INGEST/v1/news" -H 'Content-Type: application/json' -d "$PAYLOAD"; echo
+post_news; echo
 
 say "последние события пайплайна по SSE (2 секунды)"
 curl -fsS -N --max-time 2 "$INGEST/v1/pipeline/stream?after=0" | head -20 || true
