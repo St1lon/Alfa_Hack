@@ -1,0 +1,93 @@
+[
+  {
+    "code": "fx_forward",
+    "name": "Валютный форвард",
+    "description": "Фиксирует курс покупки или продажи валюты на будущую дату и снимает неопределённость стоимости контракта.",
+    "risk_tags": ["fx_risk", "export", "import"],
+    "client_mark": null
+  },
+  {
+    "code": "fx_option",
+    "name": "Валютный опцион",
+    "description": "Даёт право купить или продать валюту по фиксированному курсу: защищает от неблагоприятного движения и сохраняет выгоду от благоприятного.",
+    "risk_tags": ["fx_risk", "export", "import"],
+    "client_mark": null
+  },
+  {
+    "code": "interest_rate_swap",
+    "name": "Процентный своп",
+    "description": "Конвертирует плавающую ставку по долгу в фиксированную и делает процентные платежи предсказуемыми.",
+    "risk_tags": ["rate_risk", "capex"],
+    "client_mark": null
+  },
+  {
+    "code": "factoring",
+    "name": "Факторинг",
+    "description": "Пополняет оборотные средства сразу после отгрузки, не дожидаясь отсрочки платежа дебитора.",
+    "risk_tags": ["liquidity_gap", "supply_chain"],
+    "client_mark": "FACTORING_MARK"
+  },
+  {
+    "code": "international_factoring",
+    "name": "Международный факторинг",
+    "description": "Нивелирует кассовый разрыв при удлинении логистического цикла и экспортной отсрочки платежа.",
+    "risk_tags": ["liquidity_gap", "export", "supply_chain"],
+    "client_mark": "FACTORING_MARK"
+  },
+  {
+    "code": "credit_line",
+    "name": "Кредитная линия на пополнение оборотных средств",
+    "description": "Резервный источник оборотки на случай кассовых разрывов и роста стоимости заёмного финансирования.",
+    "risk_tags": ["liquidity_gap", "rate_risk", "capex"],
+    "client_mark": "CL_PRODUCT_LOA_MARK"
+  },
+  {
+    "code": "letter_of_credit",
+    "name": "Аккредитив",
+    "description": "Заменяет предоплату в чужом банке гарантией платежа: деньги не отвлекаются из оборота, пока поставщик не исполнит обязательства.",
+    "risk_tags": ["supply_chain", "import", "export"],
+    "client_mark": null
+  },
+  {
+    "code": "trade_finance",
+    "name": "ВЭД-расчёты и документарные операции",
+    "description": "Сопровождение внешнеторговых контрактов: валютный контроль, аккредитивы и гарантии под конкретную сделку.",
+    "risk_tags": ["import", "export", "supply_chain"],
+    "client_mark": null
+  },
+  {
+    "code": "bank_guarantee",
+    "name": "Банковская гарантия",
+    "description": "Освобождает денежный залог по обязательствам (тендеры, авансы, таможня) без отвлечения средств из оборота.",
+    "risk_tags": ["liquidity_gap", "supply_chain", "capex"],
+    "client_mark": "CL_PRODUCT_GAR_MARK"
+  },
+  {
+    "code": "leasing",
+    "name": "Лизинг",
+    "description": "Финансирование оборудования и техники без единовременного капзатрата: платежи размазаны под срок окупаемости проекта.",
+    "risk_tags": ["capex", "rate_risk"],
+    "client_mark": "CL_PRODUCT_LEA_MARK"
+  },
+  {
+    "code": "liquidity_placement",
+    "name": "Размещение ликвидности (депозит)",
+    "description": "Зарабатывает на временно свободных остатках, сохраняя гибкий срок изъятия под кассовый план.",
+    "risk_tags": ["liquidity_gap"],
+    "client_mark": "CL_PRODUCT_DEP_MARK"
+  },
+  {
+    "code": "bond_loan",
+    "name": "Облигационный заём",
+    "description": "Диверсифицирует источники долга и удлиняет его срок по сравнению с банковскими кредитами.",
+    "risk_tags": ["rate_risk", "capex", "liquidity_gap"],
+    "client_mark": null
+  },
+  {
+    "code": "payroll_project",
+    "name": "Зарплатный проект",
+    "description": "Снижает операционную нагрузку и стоимость обслуживания ФОТ, включая зачисления и отчётность.",
+    "risk_tags": ["liquidity_gap"],
+    "client_mark": "CL_PRODUCT_ZPP_MARK"
+  }
+]
