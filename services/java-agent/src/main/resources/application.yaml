@@ -6,16 +6,22 @@ spring:
   application:
     name: java-agent
   datasource:
-    url: jdbc:postgresql://${ALFA_PG_HOST:localhost}:${ALFA_PG_PORT:5432}/${ALFA_PG_DATABASE:alfa}
+    url: jdbc:postgresql://${ALFA_PG_HOST:localhost}:${ALFA_PG_PORT:5432}/${ALFA_PG_DATABASE:alfa}?sslmode=${ALFA_PG_SSLMODE:disable}
     username: ${ALFA_PG_USER:alfa}
     password: ${ALFA_PG_PASSWORD:alfa}
 
-# Все обращения к моделям идут только через llm-gateway (CLAUDE.md §12 п.1).
 agent:
   gateway:
     base-url: ${AGENT_GATEWAY_BASE_URL:http://llm-gateway:8091}
     token: ${AGENT_GATEWAY_TOKEN:}
+    connect-timeout: ${AGENT_GATEWAY_CONNECT_TIMEOUT:5s}
+    read-timeout: ${AGENT_GATEWAY_READ_TIMEOUT:90s}
+    retries: ${AGENT_GATEWAY_RETRIES:3}
+    structured-outputs: ${AGENT_GATEWAY_STRUCTURED_OUTPUTS:true}
   model-version: ${AGENT_MODEL_VERSION:v0.1}
+  actor: ${AGENT_ACTOR:java}
+  selfcheck:
+    enabled: ${AGENT_SELFCHECK_ENABLED:false}
 
 logging:
   level:
