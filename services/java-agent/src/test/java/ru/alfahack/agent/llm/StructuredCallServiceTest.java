@@ -127,6 +127,8 @@ class StructuredCallServiceTest {
         AgentProperties props = new AgentProperties(
                 new AgentProperties.Gateway("http://gateway.test", "", Duration.ofSeconds(1),
                         Duration.ofSeconds(1), 3, structuredOutputs),
+                new AgentProperties.Rag(0.15, 0.5, 60, 3, 20),
+                new AgentProperties.Budget(6, 2, 20000),
                 "v0.1", "java", new AgentProperties.Selfcheck(false));
         var mapper = ru.alfahack.agent.config.JacksonConfig.createMapper();
         return new StructuredCallService(gateway, new SchemaLoader(mapper), props, mapper);

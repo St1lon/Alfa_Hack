@@ -122,6 +122,8 @@ class GatewayHttpClientTest {
         var props = new ru.alfahack.agent.config.AgentProperties(
                 new ru.alfahack.agent.config.AgentProperties.Gateway(
                         URL, "", Duration.ofSeconds(1), Duration.ofSeconds(1), 3, true),
+                new ru.alfahack.agent.config.AgentProperties.Rag(0.15, 0.5, 60, 3, 20),
+                new ru.alfahack.agent.config.AgentProperties.Budget(6, 2, 20000),
                 "v0.1", "java", new ru.alfahack.agent.config.AgentProperties.Selfcheck(false));
         return new Holder(
                 new GatewayHttpClient(props, ru.alfahack.agent.config.JacksonConfig.createMapper(),

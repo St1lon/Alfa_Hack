@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Эффект 1-го порядка для рынка",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["first_order"],
+  "properties": {
+    "first_order": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text"],
+      "properties": {
+        "text": { "type": "string", "minLength": 20, "maxLength": 600 },
+        "drivers": {
+          "type": "array",
+          "maxItems": 6,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["text"],
+            "properties": {
+              "text": { "type": "string", "minLength": 5, "maxLength": 200 },
+              "assumed": { "type": "boolean", "default": false }
+            }
+          }
+        }
+      }
+    }
+  }
+}
