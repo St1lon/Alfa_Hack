@@ -1,4 +1,4 @@
-.PHONY: help tidy fmt lint test test-race build up up-go down logs migrate-up migrate-down smoke data research research-force
+.PHONY: help tidy fmt lint test test-race test-integration build up up-go down logs migrate-up migrate-down smoke data research research-force
 
 GO ?= go
 COMPOSE ?= docker compose -f deployments/docker-compose.yaml
@@ -10,6 +10,7 @@ help:
 	@echo "lint          - golangci-lint run"
 	@echo "test          - юнит-тесты"
 	@echo "test-race     - юнит-тесты с -race"
+	@echo "test-integration - репозитории против Postgres в контейнере (нужен Docker)"
 	@echo "build         - сборка трёх Go-сервисов в ./bin"
 	@echo "up            - поднять весь стек (4 сервиса + gateway + postgres)"
 	@echo "up-go         - поднять только Go-контур и БД (быстро)"
@@ -29,13 +30,17 @@ fmt:
 	gofmt -w ./internal ./services
 
 lint:
-	golangci-lint run ./...
+	golangci-lint run --build-tags=integration ./...
 
 test:
 	$(GO) test ./...
 
 test-race:
 	$(GO) test -race ./...
+
+# Репозитории против настоящего Postgres в контейнере (нужен Docker).
+test-integration:
+	$(GO) test -tags=integration -count=1 -timeout=5m ./...
 
 build:
 	$(GO) build -trimpath -o bin/go-ingest ./services/go-ingest/cmd

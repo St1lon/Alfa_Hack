@@ -135,8 +135,10 @@ DI-контейнер не используем. Сборка — в `app.Build(
 
 - Юнит — рядом с кодом (`usecase_test.go`, `request_validate_test.go`), `testify/require`,
   моки портов — `go.uber.org/mock` (`//go:generate mockgen -source=repo.go -destination=mocks/repo_mock.go -package=mocks`).
-- Интеграционные — `internal/integrationtests`, билд-тег `//go:build integration`, Postgres
-  через `testcontainers-go`.
+- Интеграционные — `services/<svc>/internal/integrationtests`, билд-тег `//go:build integration`,
+  Postgres через `testcontainers-go`. Общий хелпер `internal/testsupport/pgtest` поднимает
+  pgvector в контейнере, накатывает все миграции и умеет подключаться под ролью сервиса.
+  `testcontainers-go` закреплён на v0.35: более новые требуют Go 1.25. Запуск — `make test-integration`.
 - E2E — `e2e/`, билд-тег `//go:build e2e`, против поднятого compose, только golden-path.
 - Готово = `golangci-lint run` чистый + `go test -race ./...` зелёный.
 
