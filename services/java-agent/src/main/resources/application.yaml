@@ -20,6 +20,12 @@ agent:
     structured-outputs: ${AGENT_GATEWAY_STRUCTURED_OUTPUTS:true}
   model-version: ${AGENT_MODEL_VERSION:v0.1}
   actor: ${AGENT_ACTOR:java}
+  rag:
+    lexical-min-score: ${AGENT_RAG_LEXICAL_MIN:0.15}
+    vector-min-score: ${AGENT_RAG_VECTOR_MIN:0.5}
+    rrf-k: ${AGENT_RAG_RRF_K:60}
+    max-statements: ${AGENT_RAG_MAX_STATEMENTS:3}
+    candidate-limit: ${AGENT_RAG_CANDIDATE_LIMIT:20}
   selfcheck:
     enabled: ${AGENT_SELFCHECK_ENABLED:false}
 
