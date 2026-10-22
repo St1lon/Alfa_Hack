@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Извлечение фактов из новости",
+  "description": "facts_confirmed — факты, подтверждённые текстом; facts_assumed — предположения и оценки",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["facts_confirmed", "facts_assumed"],
+  "properties": {
+    "facts_confirmed": {
+      "type": "array",
+      "maxItems": 10,
+      "items": { "type": "string", "minLength": 3 }
+    },
+    "facts_assumed": {
+      "type": "array",
+      "maxItems": 10,
+      "items": { "type": "string", "minLength": 3 }
+    }
+  }
+}
