@@ -26,6 +26,10 @@ agent:
     rrf-k: ${AGENT_RAG_RRF_K:60}
     max-statements: ${AGENT_RAG_MAX_STATEMENTS:3}
     candidate-limit: ${AGENT_RAG_CANDIDATE_LIMIT:20}
+  budget:
+    max-tool-calls: ${AGENT_BUDGET_MAX_TOOL_CALLS:6}
+    max-critic-iterations: ${AGENT_BUDGET_MAX_CRITIC_ITERATIONS:2}
+    max-tokens-per-run: ${AGENT_BUDGET_MAX_TOKENS_PER_RUN:20000}
   selfcheck:
     enabled: ${AGENT_SELFCHECK_ENABLED:false}
 

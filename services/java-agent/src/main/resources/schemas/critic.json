@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Самопроверка черновика",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["passed", "failures"],
+  "properties": {
+    "passed": { "type": "boolean" },
+    "failures": {
+      "type": "array",
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["check", "detail"],
+        "properties": {
+          "check": {
+            "enum": [
+              "EVIDENCE_FOR_EVERY_CLAIM",
+              "MIN_TWO_COMPANY_FEATURES",
+              "NO_CONTRADICTION_WITH_BANK",
+              "NOT_A_RETELLING",
+              "NUMBERS_JUSTIFIED"
+            ]
+          },
+          "detail": { "type": "string", "maxLength": 300 }
+        }
+      }
+    }
+  }
+}

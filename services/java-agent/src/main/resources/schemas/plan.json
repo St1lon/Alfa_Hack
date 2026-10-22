@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "План разбора",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tools"],
+  "properties": {
+    "tools": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 6,
+      "items": {
+        "enum": [
+          "get_company_profile",
+          "get_counterparty_exposure",
+          "search_alfa_research",
+          "get_story",
+          "find_similar_past_events",
+          "list_cib_products",
+          "get_group_context"
+        ]
+      }
+    },
+    "note": { "type": "string", "maxLength": 300 }
+  }
+}

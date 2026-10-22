@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Эффект 2-го порядка, квантификация и плейбук",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["second_order", "impact", "risk_tags", "playbook"],
+  "properties": {
+    "second_order": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "citations"],
+      "properties": {
+        "text": { "type": "string", "minLength": 30, "maxLength": 900 },
+        "citations": { "type": "array", "minItems": 2, "maxItems": 8, "items": { "type": "string" } }
+      }
+    },
+    "impact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "severity", "impact_score", "probability", "time_horizon", "target_personas"],
+      "properties": {
+        "type": { "enum": ["RISK", "OPPORTUNITY", "MIXED"] },
+        "severity": { "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+        "impact_score": { "type": "integer", "minimum": -10, "maximum": 10 },
+        "probability": { "type": "number", "minimum": 0, "maximum": 1 },
+        "time_horizon": { "enum": ["SHORT_TERM_1_3M", "MID_TERM_3_12M", "LONG_TERM_1Y_PLUS"] },
+        "target_personas": { "type": "array", "maxItems": 4, "items": { "type": "string", "maxLength": 60 } }
+      }
+    },
+    "risk_tags": {
+      "type": "array",
+      "maxItems": 5,
+      "items": { "enum": ["rate_risk", "fx_risk", "liquidity_gap", "supply_chain", "export", "import", "capex"] }
+    },
+    "playbook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["what_to_do", "what_to_watch"],
+      "properties": {
+        "what_to_do": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["text"],
+            "properties": {
+              "text": { "type": "string", "minLength": 15, "maxLength": 300 },
+              "citations": { "type": "array", "maxItems": 5, "items": { "type": "string" } }
+            }
+          }
+        },
+        "what_to_watch": { "type": "array", "maxItems": 5, "items": { "type": "string", "maxLength": 200 } },
+        "risks_to_consider": { "type": "array", "maxItems": 4, "items": { "type": "string", "maxLength": 200 } },
+        "questions_for_team": { "type": "array", "maxItems": 4, "items": { "type": "string", "maxLength": 200 } }
+      }
+    }
+  }
+}

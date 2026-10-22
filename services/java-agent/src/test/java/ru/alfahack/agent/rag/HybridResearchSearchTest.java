@@ -122,6 +122,7 @@ class HybridResearchSearchTest {
                 new AgentProperties.Gateway("http://gateway.test", "", java.time.Duration.ofSeconds(1),
                         java.time.Duration.ofSeconds(1), 3, true),
                 new AgentProperties.Rag(0.15, 0.5, 60, 3, 20),
+                new AgentProperties.Budget(6, 2, 20000),
                 "v0.1", "java", new AgentProperties.Selfcheck(false));
     }
 

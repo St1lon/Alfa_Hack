@@ -9,6 +9,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 public record AgentProperties(
         Gateway gateway,
         @DefaultValue Rag rag,
+        @DefaultValue Budget budget,
         @DefaultValue("v0.1") String modelVersion,
         @DefaultValue("java") String actor,
         @DefaultValue Selfcheck selfcheck) {
@@ -28,6 +29,12 @@ public record AgentProperties(
             @DefaultValue("60") int rrfK,
             @DefaultValue("3") int maxStatements,
             @DefaultValue("20") int candidateLimit) {
+    }
+
+    public record Budget(
+            @DefaultValue("6") int maxToolCalls,
+            @DefaultValue("2") int maxCriticIterations,
+            @DefaultValue("20000") int maxTokensPerRun) {
     }
 
     public record Selfcheck(@DefaultValue("false") boolean enabled) {
