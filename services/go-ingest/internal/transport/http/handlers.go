@@ -24,11 +24,12 @@ type NewsIngestor interface {
 // EventReader — порт чтения журнала событий пайплайна.
 type EventReader interface {
 	ListAfter(ctx context.Context, afterID int64, limit int) ([]domain.PipelineEvent, error)
+	LatestEventID(ctx context.Context) (int64, error)
 }
 
-// StatusCounter — порт счётчиков новостей по статусам.
-type StatusCounter interface {
-	CountByStatus(ctx context.Context) (map[string]int, error)
+// StatsReader — порт снимка воронки пайплайна.
+type StatsReader interface {
+	Snapshot(ctx context.Context) (*domain.PipelineStats, error)
 }
 
 // Pinger — порт проверки живости БД.
@@ -38,11 +39,11 @@ type Pinger interface {
 
 // Deps — зависимости HTTP-контура go-ingest.
 type Deps struct {
-	Ingest  NewsIngestor
-	Events  EventReader
-	Counter StatusCounter
-	DB      Pinger
-	Log     *slog.Logger
+	Ingest NewsIngestor
+	Events EventReader
+	Stats  StatsReader
+	DB     Pinger
+	Log    *slog.Logger
 }
 
 // Handlers реализует эндпоинты go-ingest.
@@ -75,7 +76,12 @@ type healthResponse struct {
 
 // metricsResponse — счётчики пайплайна для внутреннего дашборда команды.
 type metricsResponse struct {
-	NewsByStatus map[string]int `json:"news_by_status"`
+	NewsByStatus    map[string]int `json:"news_by_status"`
+	StoriesByStatus map[string]int `json:"stories_by_status"`
+	ResearchDocs    int            `json:"research_documents"`
+	ResearchChunks  int            `json:"research_chunks"`
+	NewsLast24h     int            `json:"news_last_24h"`
+	LastFetchedAt   *time.Time     `json:"last_fetched_at,omitempty"`
 }
 
 // NewHandlers создаёт обработчики go-ingest.
@@ -137,12 +143,19 @@ func (h *Handlers) Readyz(w http.ResponseWriter, r *http.Request) {
 
 // Metrics отдаёт счётчики пайплайна.
 func (h *Handlers) Metrics(w http.ResponseWriter, r *http.Request) {
-	counts, err := h.deps.Counter.CountByStatus(r.Context())
+	stats, err := h.deps.Stats.Snapshot(r.Context())
 	if err != nil {
 		h.writeErr(w, r, err)
 		return
 	}
-	httpx.WriteJSON(w, h.deps.Log, http.StatusOK, metricsResponse{NewsByStatus: counts})
+	httpx.WriteJSON(w, h.deps.Log, http.StatusOK, metricsResponse{
+		NewsByStatus:    statusMap(stats.NewsByStatus),
+		StoriesByStatus: statusMap(stats.StoriesByStatus),
+		ResearchDocs:    stats.ResearchDocs,
+		ResearchChunks:  stats.ResearchChunks,
+		NewsLast24h:     stats.NewsLast24h,
+		LastFetchedAt:   stats.LastFetchedAt,
+	})
 }
 
 // writeErr маппит ошибку usecase в HTTP-ответ и логирует серверные сбои.
@@ -160,4 +173,13 @@ func (h *Handlers) writeErr(w http.ResponseWriter, r *http.Request, err error) {
 // isClientGone отличает «клиент закрыл SSE-соединение» от настоящей ошибки.
 func isClientGone(err error) bool {
 	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
+}
+
+// statusMap переводит доменные статусы в ключи JSON.
+func statusMap(counts map[domain.PipelineStatus]int) map[string]int {
+	out := make(map[string]int, len(counts))
+	for status, count := range counts {
+		out[status.String()] = count
+	}
+	return out
 }

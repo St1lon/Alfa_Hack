@@ -92,3 +92,16 @@ func (r *PipelineRepo) ListAfter(ctx context.Context, afterID int64, limit int) 
 	}
 	return events, nil
 }
+
+// LatestEventID — id последнего события журнала (0, если журнал пуст).
+// Нужен, чтобы live-панель начинала с недавних событий, а не со всей истории.
+func (r *PipelineRepo) LatestEventID(ctx context.Context) (int64, error) {
+	const query = `SELECT coalesce(max(id), 0) FROM pipeline_events`
+
+	var id int64
+	q := postgres.GetQuerier(ctx, r.pool)
+	if err := q.QueryRow(ctx, query).Scan(&id); err != nil {
+		return 0, fmt.Errorf("select latest event id: %w", err)
+	}
+	return id, nil
+}

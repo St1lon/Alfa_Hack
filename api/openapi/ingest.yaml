@@ -50,20 +50,55 @@ paths:
       operationId: metrics
       responses:
         "200":
-          description: Количество новостей по статусам
+          description: Воронка пайплайна — новости и сюжеты по статусам, объём базы знаний
           content:
             application/json:
               schema:
                 type: object
-                required: [news_by_status]
+                required: [news_by_status, stories_by_status, research_documents, research_chunks, news_last_24h]
                 properties:
                   news_by_status:
                     type: object
                     additionalProperties:
                       type: integer
                     example:
-                      RAW: 128
-                      DEDUPED: 96
+                      DEDUPED: 3
+                      ENRICHED: 275
+                      FILTERED: 662
+                  stories_by_status:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                    example:
+                      ENRICHED: 270
+                  research_documents:
+                    type: integer
+                    example: 9
+                  research_chunks:
+                    type: integer
+                    example: 123
+                  news_last_24h:
+                    type: integer
+                    example: 214
+                  last_fetched_at:
+                    type: string
+                    format: date-time
+                    description: Когда последний раз забрали новость; отсутствует, если новостей нет
+
+  /panel:
+    get:
+      summary: Live-панель пайплайна
+      description: |
+        Самодостаточная HTML-страница: воронка из /metrics, журнал из SSE-стрима
+        и форма вброса новости. Фронт может встроить её iframe-ом или перенести.
+      operationId: panel
+      responses:
+        "200":
+          description: HTML-страница
+          content:
+            text/html:
+              schema:
+                type: string
 
   /v1/news:
     post:
@@ -106,6 +141,7 @@ paths:
         Server-Sent Events: каждое событие — продвижение сущности по статусам
         RAW → DEDUPED → ENRICHED → SCORED → ANALYZED → PUBLISHED.
         Докрутка с места обрыва — заголовком Last-Event-ID или параметром after.
+        Без позиции стрим начинается с 30 последних событий; after=0 — вся история.
       operationId: streamPipeline
       parameters:
         - in: query
@@ -114,7 +150,7 @@ paths:
           schema:
             type: integer
             format: int64
-          description: Отдавать события с id больше указанного
+          description: Отдавать события с id больше указанного (0 — с начала журнала)
         - in: header
           name: Last-Event-ID
           required: false

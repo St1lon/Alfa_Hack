@@ -18,6 +18,9 @@ const (
 	sseBatchLimit = 100
 	// sseHeartbeat — комментарий-пульс, чтобы прокси не рвали простаивающее соединение.
 	sseHeartbeat = 15 * time.Second
+	// sseDefaultBacklog — сколько последних событий показать новому подписчику,
+	// который не назвал позицию: экран не пустой, но и тысяча старых событий не льётся.
+	sseDefaultBacklog = 30
 )
 
 // sseEvent — событие пайплайна в проводном виде.
@@ -49,7 +52,11 @@ func (h *Handlers) StreamPipeline(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	flusher.Flush()
 
-	lastID := lastEventID(r)
+	lastID, err := h.startPosition(r)
+	if err != nil {
+		h.deps.Log.ErrorContext(r.Context(), "resolve stream position failed",
+			slog.String("error", err.Error()))
+	}
 	ticker := time.NewTicker(ssePollInterval)
 	defer ticker.Stop()
 	heartbeat := time.NewTicker(sseHeartbeat)
@@ -86,17 +93,31 @@ func (h *Handlers) StreamPipeline(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// lastEventID читает позицию докрутки: заголовок Last-Event-ID или ?after=.
-func lastEventID(r *http.Request) int64 {
+// startPosition — с какого id отдавать события. Явная позиция (заголовок
+// Last-Event-ID или ?after=, after=0 — вся история) берётся как есть; без неё —
+// хвост из sseDefaultBacklog последних событий.
+func (h *Handlers) startPosition(r *http.Request) (int64, error) {
+	if id, ok := lastEventID(r); ok {
+		return id, nil
+	}
+	latest, err := h.deps.Events.LatestEventID(r.Context())
+	if err != nil {
+		return 0, fmt.Errorf("latest event id: %w", err)
+	}
+	return max(latest-sseDefaultBacklog, 0), nil
+}
+
+// lastEventID читает явную позицию докрутки: заголовок Last-Event-ID или ?after=.
+func lastEventID(r *http.Request) (int64, bool) {
 	raw := r.Header.Get("Last-Event-ID")
 	if raw == "" {
 		raw = r.URL.Query().Get("after")
 	}
 	id, err := strconv.ParseInt(raw, 10, 64)
 	if err != nil || id < 0 {
-		return 0
+		return 0, false
 	}
-	return id
+	return id, true
 }
 
 func writeSSE(w http.ResponseWriter, event domain.PipelineEvent) error {

@@ -11,28 +11,46 @@
 - Что строим и кто за что отвечает — [docs/TEAM_PLAN.md](docs/TEAM_PLAN.md)
 - Статус работ по участникам — [docs/PROGRESS.md](docs/PROGRESS.md)
 - Архитектурные правила репозитория — [CLAUDE.md](CLAUDE.md)
+- Что оркестратор ждёт от сервисов команды — [docs/PIPELINE_CONTRACTS.md](docs/PIPELINE_CONTRACTS.md)
+- Безопасность AI-контура (Ограничение 06) — [docs/SECURITY.md](docs/SECURITY.md)
 
 ---
 
 ## Быстрый старт
 
-Нужны только Docker и Docker Compose.
+Нужны Docker с Docker Compose и bash (на Windows — Git Bash). `make` не обязателен:
+ниже везде сначала прямая команда, `make`-цель — только сокращение для тех, у кого он есть.
+
+**1. Данные кейса** (один раз, ~150 МБ, около трёх минут):
 
 ```bash
-docker compose -f deployments/docker-compose.yaml up --build
+bash scripts/fetch_case_data.sh
 ```
 
-Только Go-контур и база (быстрее, без сборки Java и Python):
+**2. Весь стек:**
 
 ```bash
-make up-go
+docker compose -f deployments/docker-compose.yaml up --build -d
 ```
 
-Проверить, что всё живо:
+Вместе со стеком один раз отработает `research-loader`: распознаёт 9 PDF аналитики
+ЦМИ и кладёт чанки в базу. Первый прогон — несколько минут (это сканы, нужен OCR),
+дальше он пропускает уже загруженное.
+
+**3. Проверить, что всё живо:**
 
 ```bash
-make smoke
+bash scripts/smoke.sh
 ```
+
+| Задача | Команда | `make` |
+|---|---|---|
+| данные кейса | `bash scripts/fetch_case_data.sh` | `make data` |
+| весь стек | `docker compose -f deployments/docker-compose.yaml up --build -d` | `make up` |
+| только Go-контур и база | `docker compose -f deployments/docker-compose.yaml up --build -d postgres migrate db-roles go-ingest llm-gateway go-api` | `make up-go` |
+| перезалить аналитику ЦМИ | `docker compose -f deployments/docker-compose.yaml run --rm -e RESEARCH_FORCE=true research-loader` | `make research-force` |
+| смоук-тест | `bash scripts/smoke.sh` | `make smoke` |
+| остановить и удалить данные стека | `docker compose -f deployments/docker-compose.yaml down -v` | `make down` |
 
 | Сервис | Порт | Владелец | Состояние |
 |---|---|---|---|
@@ -41,7 +59,7 @@ make smoke
 | `py-ml` — эмбеддинги, шум, сюжеты | 8000 | Python | скелет, эндпоинты 501 |
 | `go-api` — Client Context Engine, BFF | 8090 | Go #2 | скелет, эндпоинты 501 |
 | `llm-gateway` — единственный выход к моделям | 8091 | Go #1 | работает (нужен ключ провайдера) |
-| `postgres` 16 + pgvector | 5432 | Go #1 | 26 таблиц, миграции отдельным job |
+| `postgres` 16 + pgvector | **15432** на хосте (в сети compose — 5432) | Go #1 | 26 таблиц, миграции отдельным job |
 
 ## Что уже можно делать
 
@@ -50,11 +68,14 @@ make smoke
 curl localhost:8080/metrics
 
 # вбросить свою новость — живой путь для демо
-curl -X POST localhost:8080/v1/news -H 'Content-Type: application/json' -d '{
+# (тело через stdin: на Windows `curl -d 'кириллица'` портит текст ещё до сервера)
+curl -X POST localhost:8080/v1/news -H 'Content-Type: application/json; charset=utf-8' --data-binary @- <<'JSON'
+{
   "url": "https://example.com/news/1",
   "title": "РЖД индексирует тарифы на восточном полигоне",
   "body": "Тариф на перевозку неугольных грузов индексируется на 10 процентов с 1 декабря."
-}'
+}
+JSON
 
 # live-панель пайплайна (Server-Sent Events)
 curl -N localhost:8080/v1/pipeline/stream

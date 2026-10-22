@@ -33,6 +33,7 @@ func NewRouter(handlers *Handlers) http.Handler {
 	r.Get("/healthz", handlers.Healthz)
 	r.Get("/readyz", handlers.Readyz)
 	r.Get("/metrics", handlers.Metrics)
+	r.Get("/panel", handlers.Panel)
 
 	r.Route("/v1", func(v1 chi.Router) {
 		v1.Post("/news", handlers.IngestNews)

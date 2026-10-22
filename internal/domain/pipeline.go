@@ -7,6 +7,7 @@ package domain
 type PipelineStatus string
 
 // Статусы пайплайна: RAW → DEDUPED → ENRICHED → SCORED → ANALYZED → PUBLISHED.
+// FILTERED — штатный выход из воронки (шум, нерелевантный сюжет), FAILED — сбой.
 const (
 	StatusRaw       PipelineStatus = "RAW"
 	StatusDeduped   PipelineStatus = "DEDUPED"
@@ -15,9 +16,10 @@ const (
 	StatusAnalyzed  PipelineStatus = "ANALYZED"
 	StatusPublished PipelineStatus = "PUBLISHED"
 	StatusFailed    PipelineStatus = "FAILED"
+	StatusFiltered  PipelineStatus = "FILTERED"
 )
 
-// Идентификаторы статусов в справочнике pipeline_statuses (миграция 00001).
+// Идентификаторы статусов в справочнике pipeline_statuses (миграции 00001, 00003).
 const (
 	statusIDRaw int16 = iota + 1
 	statusIDDeduped
@@ -26,6 +28,7 @@ const (
 	statusIDAnalyzed
 	statusIDPublished
 	statusIDFailed
+	statusIDFiltered
 )
 
 // statusIDs — соответствие кода статуса его id в справочнике pipeline_statuses.
@@ -38,18 +41,20 @@ var statusIDs = map[PipelineStatus]int16{
 	StatusAnalyzed:  statusIDAnalyzed,
 	StatusPublished: statusIDPublished,
 	StatusFailed:    statusIDFailed,
+	StatusFiltered:  statusIDFiltered,
 }
 
 // allowedTransitions — разрешённые переходы статусной машины.
 // Владелец перехода один, идемпотентность — на уровне БД (см. миграцию 00001).
 var allowedTransitions = map[PipelineStatus][]PipelineStatus{
 	StatusRaw:       {StatusDeduped, StatusFailed},
-	StatusDeduped:   {StatusEnriched, StatusFailed},
+	StatusDeduped:   {StatusEnriched, StatusFiltered, StatusFailed},
 	StatusEnriched:  {StatusScored, StatusFailed},
-	StatusScored:    {StatusAnalyzed, StatusFailed},
+	StatusScored:    {StatusAnalyzed, StatusFiltered, StatusFailed},
 	StatusAnalyzed:  {StatusPublished, StatusFailed},
 	StatusPublished: {},
 	StatusFailed:    {StatusRaw},
+	StatusFiltered:  {},
 }
 
 // ParsePipelineStatus проверяет, что код статуса известен справочнику.

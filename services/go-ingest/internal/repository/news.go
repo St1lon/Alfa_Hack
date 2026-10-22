@@ -186,35 +186,3 @@ func (r *NewsRepo) MarkSourcePolled(ctx context.Context, sourceID int16, at time
 	}
 	return nil
 }
-
-// CountByStatus — сколько новостей в каждом статусе (для /metrics и дашборда команды).
-func (r *NewsRepo) CountByStatus(ctx context.Context) (map[string]int, error) {
-	const query = `
-		SELECT s.code, count(*)
-		FROM news n
-		JOIN pipeline_statuses s ON s.id = n.status_id
-		GROUP BY s.code`
-
-	q := postgres.GetQuerier(ctx, r.pool)
-	rows, err := q.Query(ctx, query)
-	if err != nil {
-		return nil, fmt.Errorf("count news by status: %w", err)
-	}
-	defer rows.Close()
-
-	counts := make(map[string]int)
-	for rows.Next() {
-		var (
-			code  string
-			count int
-		)
-		if err = rows.Scan(&code, &count); err != nil {
-			return nil, fmt.Errorf("scan status count: %w", err)
-		}
-		counts[code] = count
-	}
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate status counts: %w", err)
-	}
-	return counts, nil
-}

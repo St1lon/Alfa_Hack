@@ -1,8 +1,8 @@
-.PHONY: help tidy fmt lint test test-race build up up-go down logs migrate-up migrate-down smoke data
+.PHONY: help tidy fmt lint test test-race test-integration build up up-go down logs migrate-up migrate-down smoke data research research-force
 
 GO ?= go
 COMPOSE ?= docker compose -f deployments/docker-compose.yaml
-PG_DSN ?= postgres://alfa:alfa@localhost:5432/alfa?sslmode=disable
+PG_DSN ?= postgres://alfa:alfa@localhost:15432/alfa?sslmode=disable
 
 help:
 	@echo "tidy          - go mod tidy"
@@ -10,6 +10,7 @@ help:
 	@echo "lint          - golangci-lint run"
 	@echo "test          - юнит-тесты"
 	@echo "test-race     - юнит-тесты с -race"
+	@echo "test-integration - репозитории против Postgres в контейнере (нужен Docker)"
 	@echo "build         - сборка трёх Go-сервисов в ./bin"
 	@echo "up            - поднять весь стек (4 сервиса + gateway + postgres)"
 	@echo "up-go         - поднять только Go-контур и БД (быстро)"
@@ -19,6 +20,8 @@ help:
 	@echo "migrate-down  - откатить одну миграцию"
 	@echo "smoke         - быстрая проверка живого контура (healthz + вброс новости)"
 	@echo "data          - скачать данные кейса в data/ (CSV и аналитику ЦМИ)"
+	@echo "research      - загрузить аналитику ЦМИ в базу (OCR, повторно пропускает загруженное)"
+	@echo "research-force - перезалить аналитику ЦМИ целиком"
 
 tidy:
 	$(GO) mod tidy
@@ -27,13 +30,17 @@ fmt:
 	gofmt -w ./internal ./services
 
 lint:
-	golangci-lint run ./...
+	golangci-lint run --build-tags=integration ./...
 
 test:
 	$(GO) test ./...
 
 test-race:
 	$(GO) test -race ./...
+
+# Репозитории против настоящего Postgres в контейнере (нужен Docker).
+test-integration:
+	$(GO) test -tags=integration -count=1 -timeout=5m ./...
 
 build:
 	$(GO) build -trimpath -o bin/go-ingest ./services/go-ingest/cmd
@@ -65,3 +72,9 @@ smoke:
 
 data:
 	bash scripts/fetch_case_data.sh
+
+research:
+	$(COMPOSE) run --rm --build research-loader
+
+research-force:
+	$(COMPOSE) run --rm --build -e RESEARCH_FORCE=true research-loader

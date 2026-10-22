@@ -15,6 +15,9 @@ var (
 	// Аналитика банка.
 	ErrResearchDocNotFound = errors.New("research document not found")
 	ErrResearchChunkEmpty  = errors.New("research chunk must not be empty")
+	ErrResearchFileMissing = errors.New("research file not found")
+	ErrInvalidResearchSpec = errors.New("invalid research document spec")
+	ErrResearchNoText      = errors.New("no usable text extracted from research document")
 
 	// Компании.
 	ErrCompanyNotFound = errors.New("company not found")
@@ -25,6 +28,10 @@ var (
 	// Пайплайн.
 	ErrUnknownPipelineStatus   = errors.New("unknown pipeline status")
 	ErrInvalidStatusTransition = errors.New("invalid pipeline status transition")
+	// ErrDownstreamNotReady — соседний сервис ещё не реализовал нужный эндпоинт
+	// (отвечает 501/404) или недоступен. Оркестратор пропускает этап до следующего
+	// тика и не тратит на это попытки записи: это не сбой данных.
+	ErrDownstreamNotReady = errors.New("downstream service is not ready")
 
 	// LLM-Gateway.
 	ErrModelNotAllowed     = errors.New("model is not in allowlist")
