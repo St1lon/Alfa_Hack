@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Пайплайн новостей</title>
+<style>
+  :root {
+    --bg: #f6f6f7; --card: #fff; --text: #1d1d1f; --muted: #6e6e73; --line: #e3e3e6;
+    --accent: #e3262c; --ok: #1f8a4c; --warn: #b26a00; --info: #2c5fb3; --off: #8a8a8e;
+    --hl: #fff1f1;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141416; --card: #1d1d20; --text: #f2f2f4; --muted: #9a9aa0; --line: #2e2e33;
+      --accent: #ff4d52; --ok: #3fbf74; --warn: #e0a030; --info: #6d9cf0; --off: #77777d;
+      --hl: #3a1d1f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { padding: 16px; border-bottom: 3px solid var(--accent); background: var(--card);
+           display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  header h1 { margin: 0; font-size: 18px; }
+  .live { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--off); }
+  .dot.on { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent); }
+  main { max-width: 1200px; margin: 0 auto; padding: 16px; display: grid; gap: 16px;
+         grid-template-columns: minmax(0, 1fr) 360px; }
+  @media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); } }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px; min-width: 0; }
+  h2 { margin: 0 0 10px; font-size: 14px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .funnel { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; grid-column: 1 / -1; }
+  .stat { border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+  .stat b { display: block; font-size: 24px; font-variant-numeric: tabular-nums; }
+  .stat span { color: var(--muted); font-size: 12px; }
+  .stat.accent b { color: var(--accent); }
+  .meta { grid-column: 1 / -1; color: var(--muted); font-size: 12px; margin-top: -8px; }
+  #log { list-style: none; margin: 0; padding: 0; max-height: 70vh; overflow-y: auto; }
+  #log li { display: grid; grid-template-columns: 64px 92px minmax(0, 1fr); gap: 8px; padding: 7px 4px;
+            border-bottom: 1px solid var(--line); align-items: start; }
+  #log li.mine { background: var(--hl); }
+  #log time { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; }
+  .badge { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;
+           color: #fff; background: var(--off); text-align: center; }
+  .s-RAW { background: var(--off); } .s-DEDUPED { background: var(--info); }
+  .s-ENRICHED { background: var(--ok); } .s-SCORED { background: var(--warn); }
+  .s-ANALYZED, .s-PUBLISHED { background: var(--accent); }
+  .s-FILTERED { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+  .s-FAILED { background: #7a1a1d; } .s-NONE { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+  .what { overflow-wrap: anywhere; }
+  .what small { display: block; color: var(--muted); }
+  form { display: grid; gap: 8px; }
+  label { font-size: 12px; color: var(--muted); }
+  input, textarea { width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 6px;
+                    background: var(--bg); color: var(--text); font: inherit; }
+  textarea { min-height: 110px; resize: vertical; }
+  button { padding: 9px 12px; border: 0; border-radius: 6px; background: var(--accent); color: #fff;
+           font: inherit; font-weight: 600; cursor: pointer; }
+  button:disabled { opacity: .6; cursor: default; }
+  #result { font-size: 13px; color: var(--muted); min-height: 1.4em; }
+  .empty { color: var(--muted); padding: 12px 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Пайплайн новостей</h1>
+  <span class="live"><span class="dot" id="dot"></span><span id="conn">подключение…</span></span>
+</header>
+<main>
+  <div class="funnel" id="funnel"></div>
+  <div class="meta" id="meta"></div>
+
+  <section>
+    <h2>Живой журнал</h2>
+    <ul id="log"><li class="empty">Ждём событий…</li></ul>
+  </section>
+
+  <section>
+    <h2>Вбросить новость</h2>
+    <form id="inject">
+      <div><label for="title">Заголовок</label><input id="title" required maxlength="500"></div>
+      <div><label for="body">Текст</label><textarea id="body" required></textarea></div>
+      <div><label for="url">Ссылка (необязательно)</label><input id="url" type="url"></div>
+      <button id="send" type="submit">Отправить в пайплайн</button>
+      <div id="result"></div>
+    </form>
+  </section>
+</main>
+<script>
+(() => {
+  "use strict";
+
+  const STEPS = [
+    { label: "Новостей за сутки", get: m => m.news_last_24h },
+    { label: "Ждут дедупа", get: m => n(m.news_by_status, "RAW") },
+    { label: "Отсеяно как шум", get: m => n(m.news_by_status, "FILTERED") },
+    { label: "Обогащено", get: m => n(m.news_by_status, "ENRICHED") },
+    { label: "Сюжетов", get: m => sum(m.stories_by_status) },
+    { label: "Подобраны компании", get: m => n(m.stories_by_status, "SCORED") + n(m.stories_by_status, "ANALYZED") + n(m.stories_by_status, "PUBLISHED") },
+    { label: "Разобраны агентом", get: m => n(m.stories_by_status, "ANALYZED") + n(m.stories_by_status, "PUBLISHED"), accent: true },
+    { label: "Чанков аналитики", get: m => m.research_chunks },
+  ];
+  const MAX_ROWS = 200;
+  const titles = new Map();   // entity_id → заголовок из события RAW или сюжета
+  const mine = new Set();     // id новостей и сюжетов, вброшенных с этой страницы
+
+  const $ = id => document.getElementById(id);
+  const n = (obj, key) => (obj && obj[key]) || 0;
+  const sum = obj => Object.values(obj || {}).reduce((a, b) => a + b, 0);
+
+  function el(tag, cls, text) {
+    const node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  async function refreshMetrics() {
+    try {
+      const resp = await fetch("metrics", { cache: "no-store" });
+      if (!resp.ok) return;
+      const m = await resp.json();
+      const funnel = $("funnel");
+      funnel.replaceChildren(...STEPS.map(step => {
+        const box = el("div", step.accent ? "stat accent" : "stat");
+        box.append(el("b", null, String(step.get(m))), el("span", null, step.label));
+        return box;
+      }));
+      const last = m.last_fetched_at ? new Date(m.last_fetched_at).toLocaleString("ru-RU") : "—";
+      $("meta").textContent = `Документов аналитики: ${m.research_documents} · последняя новость забрана: ${last}`;
+    } catch (_) { /* следующий опрос попробует снова */ }
+  }
+
+  function addEvent(ev) {
+    const p = ev.payload || {};
+    if (p.title) titles.set(ev.entity_id, p.title);
+    if (ev.entity_kind === "story" && p.news_id && mine.has(p.news_id)) mine.add(ev.entity_id);
+
+    const log = $("log");
+    const empty = log.querySelector(".empty");
+    if (empty) empty.remove();
+
+    const row = el("li", mine.has(ev.entity_id) ? "mine" : "");
+    row.append(el("time", null, new Date(ev.created_at).toLocaleTimeString("ru-RU")));
+    const status = ev.status || "NONE";
+    row.append(el("span", "badge s-" + status, ev.status || "событие"));
+
+    const what = el("div", "what");
+    const kind = ev.entity_kind === "story" ? "Сюжет" : "Новость";
+    what.append(document.createTextNode(`${kind}: ${titles.get(ev.entity_id) || ev.entity_id.slice(0, 8)}`));
+    const details = [ev.message, p.okved_hints && p.okved_hints.length ? p.okved_hints.join(", ") : "",
+                     typeof p.noise_score === "number" ? `шум ${p.noise_score.toFixed(2)}` : "", ev.service]
+      .filter(Boolean).join(" · ");
+    what.append(el("small", null, details));
+    row.append(what);
+
+    log.prepend(row);
+    while (log.children.length > MAX_ROWS) log.lastChild.remove();
+  }
+
+  function connect() {
+    const es = new EventSource("v1/pipeline/stream");
+    es.onopen = () => { $("dot").classList.add("on"); $("conn").textContent = "в эфире"; };
+    es.onerror = () => { $("dot").classList.remove("on"); $("conn").textContent = "переподключение…"; };
+    es.addEventListener("pipeline", e => {
+      try { addEvent(JSON.parse(e.data)); } catch (_) { /* битое событие пропускаем */ }
+    });
+  }
+
+  $("inject").addEventListener("submit", async e => {
+    e.preventDefault();
+    const send = $("send");
+    send.disabled = true;
+    $("result").textContent = "Отправляем…";
+    const body = { title: $("title").value.trim(), body: $("body").value.trim() };
+    const url = $("url").value.trim();
+    if (url) body.url = url;
+    try {
+      const resp = await fetch("v1/news", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        $("result").textContent = `Ошибка: ${data.description || resp.status}`;
+      } else if (data.duplicate) {
+        $("result").textContent = "Такая новость уже есть — пайплайн её не повторяет.";
+      } else {
+        mine.add(data.news_id);
+        $("result").textContent = "Принято. Её события подсвечены в журнале.";
+        $("inject").reset();
+      }
+    } catch (err) {
+      $("result").textContent = "Сервис недоступен: " + err.message;
+    } finally {
+      send.disabled = false;
+    }
+  });
+
+  refreshMetrics();
+  setInterval(refreshMetrics, 3000);
+  connect();
+})();
+</script>
+</body>
+</html>

@@ -53,11 +53,11 @@ func Build(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, err
 	ingestUsecase := ingestnews.NewUsecase(news, events)
 
 	handlers := ingesthttp.NewHandlers(ingesthttp.Deps{
-		Ingest:  ingestUsecase,
-		Events:  events,
-		Counter: news,
-		DB:      postgres.NewHealth(pool),
-		Log:     log,
+		Ingest: ingestUsecase,
+		Events: events,
+		Stats:  repository.NewStatsRepo(pool),
+		DB:     postgres.NewHealth(pool),
+		Log:    log,
 	})
 
 	var poller *newspoller.Worker
