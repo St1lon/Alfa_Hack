@@ -1,5 +1,7 @@
 package ru.alfahack.agent.cib;
 
+import java.util.Optional;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
@@ -32,5 +34,14 @@ public enum RiskTag {
             }
         }
         throw new IllegalArgumentException("неизвестный тег риска: " + code);
+    }
+
+    public static Optional<RiskTag> parseLenient(String code) {
+        for (RiskTag tag : values()) {
+            if (tag.code.equals(code)) {
+                return Optional.of(tag);
+            }
+        }
+        return Optional.empty();
     }
 }
