@@ -1,0 +1,100 @@
+{
+  "insight_id": "0192f0c0-0000-7000-8000-000000000417",
+  "company_id": "U_417",
+  "model_version": "v1.3",
+  "agent_run_id": "0192f0c0-0000-7000-8000-000000000001",
+  "generated_at": "2026-10-19T12:00:00Z",
+  "confidence": "HIGH",
+  "story": {
+    "story_id": "0192f0c0-0000-7000-8000-000000000002",
+    "title": "Повышение экспортных пошлин и рост тарифов РЖД на восточном полигоне",
+    "sources_count": 6,
+    "sources": [
+      {
+        "news_id": "0192f0c0-0000-7000-8000-000000000003",
+        "publisher": "Интерфакс",
+        "url": "https://example.com/news/1",
+        "published_at": "2026-10-19T08:11:00Z",
+        "is_primary": true
+      }
+    ],
+    "facts_confirmed": ["Тариф индексируется на 10% с 1 декабря"],
+    "facts_assumed": ["Квоты на неугольные грузы могут быть сокращены"]
+  },
+  "personalization": {
+    "relevance_score": 0.87,
+    "match_reasons": [
+      { "feature": "MAINOKVED_CODE=24.10", "label": "Металлургия", "weight": 0.31 },
+      { "feature": "FTS_FLAG=1, FTS_COUNTRY_NAME=CN", "label": "Экспорт в Китай по данным ФТС", "weight": 0.28 },
+      { "feature": "counterparty_industry=49.20", "label": "Крупный контрагент — ж/д перевозки (18% платежей)", "weight": 0.18 }
+    ],
+    "company_features_used": [
+      "MAINOKVED_CODE", "FTS_FLAG", "FTS_COUNTRY_NAME",
+      "REVENUE_COMPANY", "CL_PRODUCT_LOA_MARK", "counterparty_edges"
+    ]
+  },
+  "bank_view": {
+    "found": true,
+    "statements": [
+      {
+        "text": "Пропускная способность Восточного полигона в IV квартале ограничит экспорт неугольных грузов на 8–12%.",
+        "source": {
+          "document": "Тактический взгляд на 3-й квартал 2026 года",
+          "page": 7,
+          "chunk_id": "0192f0c0-0000-7000-8000-000000000004"
+        }
+      }
+    ]
+  },
+  "impact_analysis": {
+    "type": "RISK",
+    "severity": "HIGH",
+    "impact_score": -8,
+    "probability": 0.7,
+    "time_horizon": "SHORT_TERM_1_3M",
+    "target_personas": ["CFO", "Директор по логистике"],
+    "first_order_effect": {
+      "text": "Удорожание железнодорожной перевалки на восток на ~10%.",
+      "attribution": "FACT",
+      "evidence": [{ "type": "news", "ref": "0192f0c0-0000-7000-8000-000000000003" }]
+    },
+    "second_order_company_effect": {
+      "text": "Снижение маржинальности экспортных поставок в Китай и риск затоваривания складов из-за приоритета угольных квот.",
+      "attribution": "AI_INFERENCE",
+      "evidence": [
+        { "type": "research_chunk", "ref": "0192f0c0-0000-7000-8000-000000000004" },
+        { "type": "company_feature", "ref": "FTS_COUNTRY_NAME=CN" },
+        { "type": "company_feature", "ref": "counterparty_industry=49.20" }
+      ]
+    }
+  },
+  "actionable_playbook": {
+    "what_to_do": [
+      {
+        "text": "Перенаправить до 20% экспортного объёма через порты Северо-Запада и Юга",
+        "attribution": "AI_INFERENCE",
+        "evidence": []
+      }
+    ],
+    "what_to_watch": [
+      "График утверждения квот РЖД на следующий месяц",
+      "Динамика спотовых ставок фрахта в балтийских портах"
+    ],
+    "risks_to_consider": ["Кассовый разрыв из-за удлинения плеча доставки на 14 дней"],
+    "questions_for_team": ["Какая доля контрактов IV квартала допускает смену базиса поставки?"],
+    "alfa_cib_product_match": {
+      "product_name": "Международный факторинг + кредитная линия на пополнение оборотных средств",
+      "risk_tags": ["liquidity_gap", "export", "supply_chain"],
+      "rationale": "Нивелирует кассовый разрыв при удлинении логистического цикла до 45 дней.",
+      "client_has_product": false,
+      "matched_by": ["FACTORING_MARK=0", "CL_PRODUCT_LOA_MARK=1"]
+    }
+  },
+  "trace": {
+    "steps_count": 6,
+    "tools_called": ["get_company_profile", "get_counterparty_exposure", "search_alfa_research", "list_cib_products"],
+    "critic_iterations": 1,
+    "tokens_used": 11840,
+    "cost_rub": 0.41
+  }
+}

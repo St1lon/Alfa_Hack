@@ -1,13 +1,13 @@
 # syntax=docker/dockerfile:1
 # Скелет java-agent (агентное ядро). Содержимое — зона Java-разработчика.
-FROM maven:3.9-eclipse-temurin-21 AS build
+FROM maven:3.9-eclipse-temurin-25 AS build
 WORKDIR /src
 COPY services/java-agent/pom.xml ./pom.xml
 RUN mvn -B -q dependency:go-offline
 COPY services/java-agent/src ./src
 RUN mvn -B -q -DskipTests package
 
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
 RUN adduser -D -u 10001 app
 COPY --from=build /src/target/java-agent.jar /app/java-agent.jar
