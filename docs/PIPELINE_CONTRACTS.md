@@ -146,6 +146,46 @@ ORDER BY e.created_at DESC LIMIT 20;
 
 Когда все пары сюжета разобраны, сюжет становится ANALYZED.
 
+### Чтение готового инсайта (для карточки и панели «Как получен вывод»)
+
+```
+GET /v1/insights/{insight_id}        → 200 {insight: <полный payload>, evidence: [{field_path, ref_type, ref, attribution}]}
+                                      | 404 {code: INSIGHT_NOT_FOUND}
+GET /v1/insights/{insight_id}/trace  → 200 {run_id, status, steps_count, critic_iterations,
+                                      |        tokens_used, cost_kop, steps: [{phase, name, tokens, cost_kop}]}
+                                      | 404
+```
+
+`attribution` — `FACT` | `BANK_VIEW` | `AI_INFERENCE` (фронт рисует три типа
+утверждений по-разному). `steps` — пошаговый трейс прогона из `agent_runs`.
+
+### Уточняющий вопрос по инсайту (go-api проксирует с того же пути)
+
+```
+POST /v1/insights/{insight_id}/questions
+{ "question": "что это значит для нашей кредитной линии?" }
+```
+
+**Ответ 200:**
+
+```json
+{
+  "answer": "Ставка сохранена — обслуживание кредитной линии не подешевеет…",
+  "citations": [
+    { "token": "chunk:1f2e…", "ref_type": "research_chunk", "ref": "1f2e…" }
+  ],
+  "tools_called": ["get_company_profile", "search_alfa_research"],
+  "usage": { "tokens": 812, "cost_kop": 14 }
+}
+```
+
+- Два вызова модели на вопрос: PLAN выбирает до 3 инструментов из того же
+  реестра, что и агент разбора (потолок `AGENT_QA_MAX_TOOL_CALLS`), затем ответ
+  по схеме `answer_question`. Позиция банка по вопросу ищется RAG-ом всегда.
+- Цитаты валидируются по токенам контекста, выдумывать ссылки агент не может.
+- 400 — пустой вопрос или длиннее `AGENT_QA_MAX_QUESTION_CHARS` (1000);
+  404 — инсайта нет; 503 — дневной бюджет исчерпан; 500 — сбой.
+
 ---
 
 ## Как посмотреть, где сейчас конвейер
