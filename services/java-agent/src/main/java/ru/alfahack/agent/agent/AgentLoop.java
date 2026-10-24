@@ -17,6 +17,7 @@ import ru.alfahack.agent.config.AgentProperties;
 import ru.alfahack.agent.domain.Insight;
 import ru.alfahack.agent.llm.StructuredCallService;
 import ru.alfahack.agent.llm.Task;
+import ru.alfahack.agent.security.UntrustedText;
 
 @Service
 @RequiredArgsConstructor
@@ -134,8 +135,8 @@ public class AgentLoop {
     }
 
     private String planPrompt(AgentRunContext ctx, int maxTools) {
-        return "Сюжет:\n<<<STORY\n" + ctx.story().title()
-                + "\n" + nullSafe(ctx.story().summary()) + "\nSTORY;\n\n"
+        return "Сюжет:\n<<<STORY\n" + data(ctx.story().title())
+                + "\n" + data(ctx.story().summary()) + "\nSTORY;\n\n"
                 + "Компания (сжатый профиль):\n<<<COMPANY\n" + "отрасль=" + nullSafe(ctx.company().okvedName())
                 + "; регион=" + nullSafe(ctx.company().region())
                 + "; ОКВЭД=" + nullSafe(ctx.company().okvedCode())
@@ -148,8 +149,9 @@ public class AgentLoop {
     }
 
     private String marketPrompt(AgentRunContext ctx) {
-        return "Сюжет:\n<<<STORY\n" + ctx.story().title() + "\n" + nullSafe(ctx.story().summary())
-                + "\nSTORY;\n\nДанные инструментов:\n<<<TOOLS\n" + toolsJson(ctx) + "\nTOOLS;\n\n"
+        return "Сюжет:\n<<<STORY\n" + data(ctx.story().title()) + "\n" + data(ctx.story().summary())
+                + "\nSTORY;\n\nДанные инструментов:\n<<<TOOLS\n" + UntrustedText.sanitize(toolsJson(ctx))
+                + "\nTOOLS;\n\n"
                 + "Сформулируй эффект 1-го порядка для рынка и ключевые факты события "
                 + "(подтверждённые и предположения).";
     }
@@ -200,6 +202,10 @@ public class AgentLoop {
 
     private static String nullSafe(String value) {
         return value == null ? "" : value;
+    }
+
+    private static String data(String value) {
+        return UntrustedText.sanitize(nullSafe(value));
     }
 
     public record InsightOutcome(UUID insightId, boolean created, boolean degraded) {

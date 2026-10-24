@@ -30,6 +30,10 @@ agent:
     max-tool-calls: ${AGENT_BUDGET_MAX_TOOL_CALLS:6}
     max-critic-iterations: ${AGENT_BUDGET_MAX_CRITIC_ITERATIONS:2}
     max-tokens-per-run: ${AGENT_BUDGET_MAX_TOKENS_PER_RUN:20000}
+  qa:
+    max-answer-tokens: ${AGENT_QA_MAX_ANSWER_TOKENS:600}
+    max-question-chars: ${AGENT_QA_MAX_QUESTION_CHARS:1000}
+    max-tool-calls: ${AGENT_QA_MAX_TOOL_CALLS:3}
   selfcheck:
     enabled: ${AGENT_SELFCHECK_ENABLED:false}
 
