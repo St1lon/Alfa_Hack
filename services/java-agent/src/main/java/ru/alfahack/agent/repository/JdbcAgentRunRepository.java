@@ -37,6 +37,52 @@ public class JdbcAgentRunRepository implements AgentRunRepository {
     }
 
     @Override
+    public Optional<Insight> findInsight(UUID insightId) {
+        List<String> payloads = jdbc.query("""
+                SELECT payload::text FROM insights WHERE insight_id = :id
+                """, new MapSqlParameterSource("id", insightId),
+                (rs, i) -> rs.getString("payload"));
+        if (payloads.isEmpty()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(mapper.readValue(payloads.get(0), Insight.class));
+        } catch (Exception e) {
+            throw new IllegalStateException("инсайт не читается: " + insightId, e);
+        }
+    }
+
+    @Override
+    public Optional<InsightCard> loadCard(UUID insightId) {
+        Optional<Insight> insight = findInsight(insightId);
+        if (insight.isEmpty()) {
+            return Optional.empty();
+        }
+        List<EvidenceView> evidence = jdbc.query("""
+                SELECT e.field_path, e.ref_type, e.ref, a.code
+                FROM evidence e JOIN attribution_types a ON a.id = e.attribution_id
+                WHERE e.insight_id = :id ORDER BY e.id
+                """, new MapSqlParameterSource("id", insightId),
+                (rs, i) -> new EvidenceView(rs.getString("field_path"), rs.getString("ref_type"),
+                        rs.getString("ref"), rs.getString("code")));
+        return Optional.of(new InsightCard(insight.get(), evidence));
+    }
+
+    @Override
+    public Optional<RunTrace> loadTrace(UUID insightId) {
+        List<RunTrace> traces = jdbc.query("""
+                SELECT r.id, r.status, r.steps_count, r.critic_iterations, r.tokens_used,
+                    r.cost_kop, r.trace::text AS trace
+                FROM agent_runs r JOIN insights i ON i.agent_run_id = r.id
+                WHERE i.insight_id = :id
+                """, new MapSqlParameterSource("id", insightId),
+                (rs, i) -> new RunTrace(rs.getObject("id", UUID.class), rs.getString("status"),
+                        rs.getInt("steps_count"), rs.getInt("critic_iterations"),
+                        rs.getInt("tokens_used"), rs.getLong("cost_kop"), rs.getString("trace")));
+        return traces.stream().findFirst();
+    }
+
+    @Override
     public UUID startRun(UUID storyId, String companyId) {
         UUID runId = UUID.randomUUID();
         jdbc.update("""
